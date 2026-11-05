@@ -25,6 +25,11 @@ class MunicipioDaUf(BaseModel):
     controle_fora_do_padrao_registros: int | None
 
 
+class MunicipioDoIndice(MunicipioDaUf):
+    uf: str
+    regiao: str | None
+
+
 class AnoVigilancia(BaseModel):
     ano: int
     analises: int
