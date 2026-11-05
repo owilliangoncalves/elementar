@@ -26,6 +26,8 @@ from elementar.api.modelos import (
     MunicipioDoIndice,
     MunicipioResumo,
     Pagina,
+    ParametroControle,
+    ParametroVigilancia,
 )
 from elementar.config import DADOS_PADRAO, configurar_log
 
@@ -108,6 +110,30 @@ def municipio(request: Request, codigo: CodigoIbge) -> Municipio:
     if resultado is None:
         raise HTTPException(404, f"Município não encontrado: {codigo}")
     return resultado
+
+
+AnoObrigatorio = Annotated[int, Query(ge=2000, le=2100)]
+
+
+@app.get("/municipios/{codigo}/vigilancia/resumo")
+def resumo_vigilancia(
+    request: Request,
+    codigo: CodigoIbge,
+    ano: AnoObrigatorio,
+    motivo: Annotated[str | None, Query(max_length=50)] = None,
+) -> list[ParametroVigilancia]:
+    """Análises do ano por parâmetro: por mês, por motivo e a distribuição dos resultados.
+
+    Com ``motivo`` (ex.: Rotina, Denúncia), conta só as coletas daquele motivo."""
+    return base(request).resumo_vigilancia(codigo, ano, motivo)
+
+
+@app.get("/municipios/{codigo}/controle/resumo")
+def resumo_controle(
+    request: Request, codigo: CodigoIbge, ano: AnoObrigatorio
+) -> list[ParametroControle]:
+    """Registros fora do padrão do ano por parâmetro: zona, ponto e áreas."""
+    return base(request).resumo_controle(codigo, ano)
 
 
 @app.get("/municipios/{codigo}/{tabela}")
