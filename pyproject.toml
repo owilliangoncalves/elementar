@@ -18,6 +18,7 @@ elementar-coleta = "elementar.coleta:main"
 elementar-carga = "elementar.carga:main"
 elementar-verifica = "elementar.verificar:main"
 elementar-arquivos = "elementar.arquivos.atualizar:main"
+elementar-servido = "elementar.arquivos.servido:main"
 
 [build-system]
 requires = ["uv_build>=0.13.1,<0.14.0"]
