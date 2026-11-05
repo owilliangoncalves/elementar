@@ -11,3 +11,5 @@ wheels/
 .env
 # Dados coletados
 data/
+# Ruff
+.ruff_cache
