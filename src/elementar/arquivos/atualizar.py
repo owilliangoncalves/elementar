@@ -1,12 +1,15 @@
 """Baixa os CSVs do OpenDataSUS listados em arquivos.toml e gera Parquet por ano.
 
-Resultado em ``<dados>/parquet/<tabela>/ano=AAAA/dados.parquet``. O manifesto
-(``<dados>/parquet/manifesto.json``) guarda o ETag de cada arquivo remoto, e
-reexecuções só baixam o que mudou na fonte.
+Duas camadas em ``<dados>/parquet/``:
+
+- ``bruto/<tabela>/ano=AAAA/dados.parquet``: todas as colunas do CSV. O
+  manifesto (``bruto/manifesto.json``) guarda o ETag de cada arquivo remoto, e
+  reexecuções só baixam o que mudou na fonte.
+- ``servido/<tabela>/ano=AAAA/dados.parquet``: só os campos do endpoints.toml,
+  com os nomes da API. É a camada lida pelo backend.
 """
 
 import argparse
-import fcntl
 import logging
 import sys
 import tempfile
@@ -19,6 +22,8 @@ from elementar.arquivos import manifesto
 from elementar.arquivos.conversao import arquivo_ano, converter
 from elementar.arquivos.download import NaoPublicado, baixar, extrair_csv
 from elementar.arquivos.fontes import Arquivo, carregar_arquivos
+from elementar.arquivos.servido import gerar_todas
+from elementar.arquivos.trava import travar
 from elementar.config import DADOS_PADRAO, configurar_log
 
 log = logging.getLogger(__name__)
@@ -90,8 +95,8 @@ def main() -> None:
     configurar_log()
 
     raiz = args.dados / "parquet"
-    raiz.mkdir(parents=True, exist_ok=True)
-    caminho_manifesto = raiz / "manifesto.json"
+    bruto = raiz / "bruto"
+    caminho_manifesto = bruto / "manifesto.json"
 
     arquivos = carregar_arquivos()
     if args.tabela:
@@ -99,12 +104,8 @@ def main() -> None:
         if not arquivos:
             sys.exit(f"Nenhuma tabela encontrada: {args.tabela}")
 
-    with (raiz / ".lock").open("w") as trava:
-        try:
-            fcntl.flock(trava, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            sys.exit("Outra atualização já está em andamento")
-
+    with travar(raiz):
+        bruto.mkdir(parents=True, exist_ok=True)
         registros = manifesto.ler(caminho_manifesto)
         falhas = []
         with httpx.Client(timeout=httpx.Timeout(60, read=300)) as cliente:
@@ -114,7 +115,7 @@ def main() -> None:
                         arquivo,
                         cliente,
                         registros,
-                        raiz,
+                        bruto,
                         args.dados / "tmp",
                         args.forcar,
                     )
@@ -126,6 +127,10 @@ def main() -> None:
                 else:
                     # Grava a cada arquivo, para não perder o progresso.
                     manifesto.gravar(caminho_manifesto, registros)
+
+        # Cada Parquet bruto está íntegro mesmo com falhas acima, então a
+        # camada servida é gerada com o que existe.
+        falhas += gerar_todas(bruto, raiz / "servido", args.tabela)
 
     if falhas:
         sys.exit(f"Atualização incompleta: {', '.join(falhas)}")
