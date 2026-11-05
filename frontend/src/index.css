@@ -1,0 +1,75 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Oswald', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+
+  /* Regiões do IBGE: identificam o lugar, não indicam qualidade. */
+  --color-norte: #4fb35a;
+  --color-nordeste: #c48a2c;
+  --color-centro-oeste: #a083e8;
+  --color-sudeste: #c4417f;
+  --color-sul: #17a7b8;
+
+  --color-vigilancia: #3b9bf0;
+  --color-controle: #f0703b;
+}
+
+:root {
+  --fundo: #f6f6f3;
+  --superficie: #ffffff;
+  --superficie-2: #ecece8;
+  --linha: #dedfdb;
+  --texto: #15171c;
+  --texto-2: #535965;
+  --texto-3: #878d98;
+  /* Motivos da coleta: paleta categórica validada para daltonismo nos dois temas. */
+  --motivo-rotina: #2a78d6;
+  --motivo-denuncia: #eda100;
+  --motivo-desastre: #e87ba4;
+  --motivo-surto: #008300;
+  /* Parâmetros: mesma luminosidade e saturação, só o matiz muda (lib/cores.ts). */
+  --param-l: 0.6;
+  --param-c: 0.14;
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  --fundo: #14161b;
+  --superficie: #1b1e24;
+  --superficie-2: #23272f;
+  --linha: #2c3039;
+  --texto: #f1f2f4;
+  --texto-2: #a9afba;
+  --texto-3: #6f7581;
+  --motivo-rotina: #3987e5;
+  --motivo-denuncia: #c98500;
+  --motivo-desastre: #d55181;
+  --motivo-surto: #008300;
+  --param-l: 0.74;
+  --param-c: 0.13;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-fundo: var(--fundo);
+  --color-superficie: var(--superficie);
+  --color-superficie-2: var(--superficie-2);
+  --color-linha: var(--linha);
+  --color-texto: var(--texto);
+  --color-texto-2: var(--texto-2);
+  --color-texto-3: var(--texto-3);
+}
+
+@layer base {
+  body {
+    @apply bg-fundo text-texto font-sans antialiased;
+    font-feature-settings: 'tnum' 1;
+  }
+  ::selection {
+    @apply bg-sul/30;
+  }
+}
