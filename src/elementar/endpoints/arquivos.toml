@@ -1,0 +1,20 @@
+# Arquivos completos (CSV zipado) publicados pelo OpenDataSUS.
+# Página dos conjuntos: https://dadosabertos.saude.gov.br/dataset?q=sisagua
+
+[agua]
+name = "SISAGUA"
+base = "https://s3.sa-east-1.amazonaws.com/ckan.saude.gov.br/SISAGUA"
+
+# Um arquivo por ano, de ano_inicial até o ano corrente.
+[[agua.arquivos]]
+name = "vigilancia_parametros_basicos"
+description = "Vigilância - Parâmetros Básicos"
+arquivo = "vigilancia_parametros_basicos_{ano}_csv.zip"
+ano_inicial = 2014
+
+# Arquivo único, dividido por ano na conversão a partir de coluna_ano.
+[[agua.arquivos]]
+name = "controle_mensal_amostras_fora_padrao"
+description = "Controle Mensal - Amostras fora do Padrão"
+arquivo = "controle_mensal_amostras_fora_padrao_csv.zip"
+coluna_ano = "NU_ANO"
