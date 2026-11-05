@@ -13,3 +13,6 @@ wheels/
 data/
 # Ruff
 .ruff_cache
+
+# Front compilado (gerado por npm run build em frontend/)
+src/elementar/web/

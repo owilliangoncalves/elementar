@@ -25,6 +25,11 @@ class MunicipioDaUf(BaseModel):
     controle_fora_do_padrao_registros: int | None
 
 
+class MunicipioDoIndice(MunicipioDaUf):
+    uf: str
+    regiao: str | None
+
+
 class AnoVigilancia(BaseModel):
     ano: int
     analises: int
@@ -61,3 +66,48 @@ class Pagina(BaseModel):
     limite: int
     deslocamento: int
     itens: list[dict[str, Any]]
+
+
+class Presenca(BaseModel):
+    presente: int
+    ausente: int
+
+
+class Numerico(BaseModel):
+    """Resultados que são números. O histograma vai de ``de`` a ``ate``
+    (percentil 99) em faixas iguais; ``acima`` conta o que passou disso."""
+
+    valores: int
+    de: float
+    ate: float
+    maximo: float
+    q1: float
+    mediana: float
+    q3: float
+    acima: int
+    histograma: list[int]
+
+
+class ParametroVigilancia(BaseModel):
+    parametro: str
+    analises: int
+    por_mes: list[int]
+    presentes_por_mes: list[int]
+    motivos: dict[str, int]
+    abaixo_do_limite: int
+    presenca: Presenca | None
+    numerico: Numerico | None
+
+
+class Area(BaseModel):
+    area: str
+    registros: int
+
+
+class ParametroControle(BaseModel):
+    parametro: str
+    registros: int
+    zonas: dict[str, int]
+    pontos: dict[str, int]
+    areas: list[Area]
+    outras_areas: int

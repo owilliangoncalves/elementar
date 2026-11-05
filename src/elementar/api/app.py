@@ -16,18 +16,24 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi import Path as Caminho
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from elementar.api.base import Base
 from elementar.api.modelos import (
     Estado,
     Municipio,
     MunicipioDaUf,
+    MunicipioDoIndice,
     MunicipioResumo,
     Pagina,
+    ParametroControle,
+    ParametroVigilancia,
 )
 from elementar.config import DADOS_PADRAO, configurar_log
 
 log = logging.getLogger(__name__)
+
+WEB = Path(__file__).parent.parent / "web"
 
 CodigoIbge = Annotated[
     str, Caminho(pattern=r"^\d{6}$", description="Código IBGE com 6 dígitos")
@@ -74,7 +80,7 @@ def estados(request: Request) -> list[Estado]:
 
 @app.get("/estados/{uf}/municipios")
 def municipios_da_uf(request: Request, uf: Uf) -> list[MunicipioDaUf]:
-    resultado = base(request).municipios_da_uf(uf)
+    resultado = base(request).municipios_com_totais(uf)
     if not resultado:
         raise HTTPException(404, f"UF sem dados: {uf}")
     return resultado
@@ -91,12 +97,43 @@ def buscar(
     return base(request).buscar(busca, uf, limite)
 
 
+# Declarada antes de /municipios/{codigo} para não ser capturada por ela.
+@app.get("/municipios/indice")
+def indice(request: Request) -> list[MunicipioDoIndice]:
+    """Todos os municípios com os totais de cada fonte, para o índice de A a Z."""
+    return base(request).municipios_com_totais()
+
+
 @app.get("/municipios/{codigo}")
 def municipio(request: Request, codigo: CodigoIbge) -> Municipio:
     resultado = base(request).municipio(codigo)
     if resultado is None:
         raise HTTPException(404, f"Município não encontrado: {codigo}")
     return resultado
+
+
+AnoObrigatorio = Annotated[int, Query(ge=2000, le=2100)]
+
+
+@app.get("/municipios/{codigo}/vigilancia/resumo")
+def resumo_vigilancia(
+    request: Request,
+    codigo: CodigoIbge,
+    ano: AnoObrigatorio,
+    motivo: Annotated[str | None, Query(max_length=50)] = None,
+) -> list[ParametroVigilancia]:
+    """Análises do ano por parâmetro: por mês, por motivo e a distribuição dos resultados.
+
+    Com ``motivo`` (ex.: Rotina, Denúncia), conta só as coletas daquele motivo."""
+    return base(request).resumo_vigilancia(codigo, ano, motivo)
+
+
+@app.get("/municipios/{codigo}/controle/resumo")
+def resumo_controle(
+    request: Request, codigo: CodigoIbge, ano: AnoObrigatorio
+) -> list[ParametroControle]:
+    """Registros fora do padrão do ano por parâmetro: zona, ponto e áreas."""
+    return base(request).resumo_controle(codigo, ano)
 
 
 @app.get("/municipios/{codigo}/{tabela}")
@@ -112,6 +149,11 @@ def linhas(
     """Registros do município. Na vigilância, informar ``ano`` deixa bem mais rápido."""
     itens = base(request).linhas(tabela, codigo, ano, parametro, limite, deslocamento)
     return Pagina(limite=limite, deslocamento=deslocamento, itens=itens)
+
+
+# Front compilado (frontend/, ``npm run build``) na raiz. Montado por último para não encobrir as rotas da API.
+if WEB.is_dir():
+    app.mount("/", StaticFiles(directory=WEB, html=True), name="web")
 
 
 def main() -> None:
