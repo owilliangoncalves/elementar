@@ -1,5 +1,9 @@
 # Arquivos completos (CSV zipado) publicados pelo OpenDataSUS.
 # Página dos conjuntos: https://dadosabertos.saude.gov.br/dataset?q=sisagua
+#
+# `endpoint` liga o arquivo a uma URL do endpoints.toml: os `campos` de lá
+# definem as colunas da camada servida, e `colunas` diz de qual coluna do CSV
+# cada campo vem (campo = "COLUNA_DO_CSV").
 
 [agua]
 name = "SISAGUA"
@@ -11,6 +15,19 @@ name = "vigilancia_parametros_basicos"
 description = "Vigilância - Parâmetros Básicos"
 arquivo = "vigilancia_parametros_basicos_{ano}_csv.zip"
 ano_inicial = 2014
+endpoint = "https://apidadosabertos.saude.gov.br/sisagua/vigilancia-parametros-basicos"
+
+[agua.arquivos.colunas]
+regiao_geografica = "NO_REGIAO"
+uf = "SG_UF"
+municipio = "NO_MUNICIPIO"
+motivo_da_coleta = "TP_MOTIVO_COLETA"
+data_da_coleta = "DT_COLETA"
+data_do_laudo = "DT_LAUDO"
+descricao_do_local = "DS_LOCAL"
+parametro = "PARAMETRO"
+resultado = "RESULTADO"
+providencia = "PROVIDENCIA"
 
 # Arquivo único, dividido por ano na conversão a partir de coluna_ano.
 [[agua.arquivos]]
@@ -18,3 +35,15 @@ name = "controle_mensal_amostras_fora_padrao"
 description = "Controle Mensal - Amostras fora do Padrão"
 arquivo = "controle_mensal_amostras_fora_padrao_csv.zip"
 coluna_ano = "NU_ANO"
+endpoint = "https://apidadosabertos.saude.gov.br/sisagua/controle-mensal-amostras-fora-do-padrao"
+
+[agua.arquivos.colunas]
+regiao_geografica = "NO_REGIAO"
+uf = "SG_UF"
+municipio = "NO_MUNICIPIO"
+sigla_da_instituicao = "SG_INSTITUICAO"
+zona = "ZONA"
+parametro = "PARAMETRO"
+ponto_de_monitoramento = "PT_MONITORAMENTO"
+area = "AREA"
+providencia_do_controle = "PROVIDENCIA_CONTROLE"
