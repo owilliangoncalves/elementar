@@ -159,19 +159,23 @@ class Base:
         )
         return resultado
 
-    def municipios_da_uf(self, uf: str) -> list[dict[str, Any]]:
+    def municipios_com_totais(self, uf: str | None = None) -> list[dict[str, Any]]:
+        """Todos os municípios (ou só os da UF) com o total de cada fonte."""
         cursor = self._cursor()
         cursor.execute(
             """
-            SELECT m.codigo_ibge, m.municipio,
-                   (SELECT sum(analises) FROM vigilancia_contagens v
-                    WHERE v.codigo_ibge = m.codigo_ibge) AS vigilancia_analises,
-                   (SELECT sum(registros) FROM controle_contagens c
-                    WHERE c.codigo_ibge = m.codigo_ibge)
-                       AS controle_fora_do_padrao_registros
-            FROM municipios m WHERE m.uf = upper(?) ORDER BY m.municipio
+            SELECT m.codigo_ibge, m.municipio, m.uf, m.regiao,
+                   v.analises AS vigilancia_analises,
+                   c.registros AS controle_fora_do_padrao_registros
+            FROM municipios m
+            LEFT JOIN (SELECT codigo_ibge, sum(analises) AS analises
+                       FROM vigilancia_contagens GROUP BY ALL) v USING (codigo_ibge)
+            LEFT JOIN (SELECT codigo_ibge, sum(registros) AS registros
+                       FROM controle_contagens GROUP BY ALL) c USING (codigo_ibge)
+            WHERE $uf IS NULL OR m.uf = upper($uf)
+            ORDER BY m.municipio, m.uf
             """,
-            [uf],
+            {"uf": uf},
         )
         return _linhas(cursor)
 
