@@ -1,17 +1,31 @@
 [project]
 name = "elementar"
 version = "0.1.0"
-description = "Add your description here"
+description = "Monitoramento de elemntos básicos da vida com dados aberto"
 readme = "README.md"
 authors = [
     { name = "Willian Gonçalves", email = "owilliangoncalves@proton.me" }
 ]
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "duckdb>=2.0.0",
+    "httpx>=0.28.1",
+]
 
 [project.scripts]
 elementar = "elementar:main"
+elementar-coleta = "elementar.coleta:main"
+elementar-carga = "elementar.carga:main"
+elementar-verifica = "elementar.verificar:main"
 
 [build-system]
 requires = ["uv_build>=0.13.1,<0.14.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.3",
+]
+
+[tool.ruff]
+src = ["src"]
