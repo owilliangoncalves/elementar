@@ -19,6 +19,10 @@ from elementar.arquivos import manifesto
 
 VIGILANCIA = "agua_vigilancia_parametros_basicos"
 CONTROLE = "agua_controle_mensal_amostras_fora_padrao"
+FAIXAS = 24  # barras do histograma de cada parâmetro numérico
+# Motivo nulo vira um valor próprio, para poder ser escolhido no filtro.
+MOTIVO = "coalesce(motivo_da_coleta, 'Não informado')"
+AREAS = 5  # áreas listadas por parâmetro no controle; o resto vira "outras"
 
 log = logging.getLogger(__name__)
 
@@ -210,6 +214,140 @@ class Base:
             parametros,
         )
         return _linhas(cursor)
+
+    def resumo_vigilancia(
+        self, codigo: str, ano: int, motivo: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Análises do ano partidas por parâmetro: por mês, por motivo e o
+        que o resultado permite contar sem interpretá-lo (presença ou a
+        distribuição dos valores numéricos).
+
+        Com ``motivo``, só as coletas daquele motivo entram nas contagens;
+        ``motivos`` continua com todos, para o front montar o filtro."""
+        filtro = f"FROM {VIGILANCIA} WHERE codigo_ibge = $codigo AND ano = $ano"
+        valores = (
+            "SELECT parametro, "
+            f"try_cast(replace(resultado, ',', '.') AS DOUBLE) AS x {filtro} "
+            f"AND ($motivo IS NULL OR {MOTIVO} = $motivo)"
+        )
+        cursor = self._cursor()
+
+        cursor.execute(
+            "SELECT parametro, month(data_da_coleta) AS mes, "
+            f"{MOTIVO} AS motivo, count(*) AS analises, "
+            "count(*) FILTER (WHERE resultado = 'PRESENTE') AS presentes, "
+            "count(*) FILTER (WHERE resultado = 'AUSENTE') AS ausentes, "
+            "count(*) FILTER (WHERE resultado IN ('MENOR_LQ', 'MENOR_LD')) "
+            f"AS abaixo_do_limite {filtro} GROUP BY ALL",
+            {"codigo": codigo, "ano": ano},
+        )
+        parametros: dict[str, dict[str, Any]] = {}
+        for linha in _linhas(cursor):
+            item = parametros.setdefault(
+                linha["parametro"],
+                {
+                    "parametro": linha["parametro"],
+                    "analises": 0,
+                    "por_mes": [0] * 12,
+                    "presentes_por_mes": [0] * 12,
+                    "motivos": {},
+                    "abaixo_do_limite": 0,
+                    "presenca": None,
+                    "numerico": None,
+                },
+            )
+            item["motivos"][linha["motivo"]] = (
+                item["motivos"].get(linha["motivo"], 0) + linha["analises"]
+            )
+            if motivo is not None and linha["motivo"] != motivo:
+                continue
+            item["analises"] += linha["analises"]
+            if linha["mes"]:
+                item["por_mes"][linha["mes"] - 1] += linha["analises"]
+                item["presentes_por_mes"][linha["mes"] - 1] += linha["presentes"]
+            if linha["presentes"] or linha["ausentes"]:
+                presenca = item["presenca"] or {"presente": 0, "ausente": 0}
+                presenca["presente"] += linha["presentes"]
+                presenca["ausente"] += linha["ausentes"]
+                item["presenca"] = presenca
+            item["abaixo_do_limite"] += linha["abaixo_do_limite"]
+
+        # Histograma entre o menor valor e o percentil 99: valores extremos
+        # (há turbidez de 73.500) achatariam o resto e vão contados à parte.
+        limites = (
+            f"WITH v AS ({valores}), lim AS ("
+            "SELECT parametro, min(x) AS de, quantile_cont(x, 0.99) AS ate "
+            "FROM v WHERE x IS NOT NULL GROUP BY 1)"
+        )
+        cursor.execute(
+            f"{limites} SELECT parametro, any_value(de) AS de, any_value(ate) AS ate, "
+            "count(*) AS valores, max(x) AS maximo, "
+            "quantile_cont(x, [0.25, 0.5, 0.75]) AS quartis, "
+            "count(*) FILTER (WHERE x > ate) AS acima "
+            "FROM v JOIN lim USING (parametro) WHERE x IS NOT NULL GROUP BY 1",
+            {"codigo": codigo, "ano": ano, "motivo": motivo},
+        )
+        for linha in _linhas(cursor):
+            q1, mediana, q3 = linha.pop("quartis")
+            parametros[linha.pop("parametro")]["numerico"] = {
+                **linha,
+                "q1": q1,
+                "mediana": mediana,
+                "q3": q3,
+                "histograma": [0] * FAIXAS,
+            }
+
+        cursor.execute(
+            f"{limites} SELECT parametro, CASE WHEN ate > de THEN "
+            f"least({FAIXAS - 1}, floor((x - de) / (ate - de) * {FAIXAS})) "
+            "ELSE 0 END::INTEGER AS faixa, count(*) AS n "
+            "FROM v JOIN lim USING (parametro) WHERE x <= ate GROUP BY ALL",
+            {"codigo": codigo, "ano": ano, "motivo": motivo},
+        )
+        for parametro, faixa, n in cursor.fetchall():
+            parametros[parametro]["numerico"]["histograma"][faixa] = n
+
+        # Com motivo, um parâmetro pode vir com zero análises: fica na resposta
+        # para que ``motivos`` traga todas as opções do filtro.
+        return sorted(parametros.values(), key=lambda p: -p["analises"])
+
+    def resumo_controle(self, codigo: str, ano: int) -> list[dict[str, Any]]:
+        """Registros fora do padrão do ano partidos por parâmetro, com zona,
+        ponto de monitoramento e as áreas que mais aparecem."""
+        cursor = self._cursor()
+        cursor.execute(
+            "SELECT parametro, zona, ponto_de_monitoramento AS ponto, area, "
+            "count(*) AS n FROM controle "
+            "WHERE codigo_ibge = $codigo AND ano = $ano GROUP BY ALL",
+            {"codigo": codigo, "ano": ano},
+        )
+        parametros: dict[str, dict[str, Any]] = {}
+        for linha in _linhas(cursor):
+            item = parametros.setdefault(
+                linha["parametro"],
+                {
+                    "parametro": linha["parametro"],
+                    "registros": 0,
+                    "zonas": {},
+                    "pontos": {},
+                    "areas": {},
+                },
+            )
+            n = linha["n"]
+            item["registros"] += n
+            for chave, valor in (
+                ("zonas", linha["zona"]),
+                ("pontos", linha["ponto"]),
+                ("areas", linha["area"]),
+            ):
+                valor = valor or "Não informado"
+                item[chave][valor] = item[chave].get(valor, 0) + n
+
+        for item in parametros.values():
+            areas = sorted(item["areas"].items(), key=lambda a: -a[1])
+            item["areas"] = [{"area": a, "registros": n} for a, n in areas[:AREAS]]
+            item["outras_areas"] = sum(n for _, n in areas[AREAS:])
+        return sorted(parametros.values(), key=lambda p: -p["registros"])
 
 
 def _por_ano(linhas: list[dict[str, Any]], chave: str) -> list[dict[str, Any]]:
