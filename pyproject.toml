@@ -14,7 +14,8 @@ dependencies = [
 
 [project.scripts]
 elementar = "elementar:main"
-elementar-coleta = "elementar.scraper:main"
+elementar-coleta = "elementar.coleta:main"
+elementar-carga = "elementar.carga:main"
 elementar-verifica = "elementar.verificar:main"
 
 [build-system]
