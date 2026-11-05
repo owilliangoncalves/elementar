@@ -1,0 +1,37 @@
+[endpoints]
+name = "Dados Abertos em Saúde"
+endpoint = "https://apidadosabertos.saude.gov.br/v1"
+
+[endpoints.agua]
+name = "SISAGUA"
+description = "Sistema de Informação da Vigilância da Qualidade da Água para Consumo Humano"
+
+[[endpoints.agua.urls]]
+name = "Parâmetros Básicos"
+endpoint = "https://apidadosabertos.saude.gov.br/sisagua/vigilancia-parametros-basicos"
+campos = [
+    "regiao_geografica",
+    "uf",
+    "municipio",
+    "motivo_da_coleta",
+    "data_da_coleta",
+    "data_do_laudo",
+    "descricao_do_local",
+    "parametro",
+    "resultado",
+    "providencia",
+]
+[[endpoints.agua.urls]]
+name = "Controle Mensal de Amostras fora do Padrão"
+endpoint = "https://apidadosabertos.saude.gov.br/sisagua/controle-mensal-amostras-fora-do-padrao"
+campos = [
+    "regiao_geografica",
+    "uf",
+    "municipio",
+    "sigla_da_instituicao",
+    "zona",
+    "parametro",
+    "ponto_de_monitoramento",
+    "area",
+    "providencia_do_controle"
+]
