@@ -39,7 +39,7 @@ import pandas as pd
 from elementar.ar.periodo import arquivo_mes, atualizado, mes, meses, ultimo_dia
 from elementar.arquivos import manifesto
 from elementar.arquivos.conversao import gravar_parquet, literal
-from elementar.arquivos.fontes import carregar_arquivos
+from elementar.arquivos.fontes import primeiro_ano
 from elementar.arquivos.trava import travar
 from elementar.config import DADOS_PADRAO, configurar_log
 
@@ -176,11 +176,6 @@ def previsao(api: Api, poluente: Poluente, inicio: date, fim: date) -> list[tupl
 ORIGENS = {"reanalise": reanalise, "previsao": previsao}
 
 
-def inicio_da_agua() -> date:
-    """1º de janeiro do primeiro ano da vigilância da água (``ano_inicial``)."""
-    return date(min(a.ano for a in carregar_arquivos() if a.ano is not None), 1, 1)
-
-
 def plano(primeiro: date, config: Config, ontem: date) -> tuple[str, date] | None:
     """Origem e último dia a pedir para o mês, ou None se não há dados."""
     ultimo = ultimo_dia(primeiro)
@@ -271,7 +266,7 @@ def main() -> None:
     parser.add_argument(
         "--inicio",
         type=mes,
-        default=inicio_da_agua(),
+        default=date(primeiro_ano(), 1, 1),
         help="AAAA-MM (padrão: primeiro ano da vigilância da água)",
     )
     parser.add_argument(
