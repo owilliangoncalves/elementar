@@ -130,6 +130,22 @@ export interface Queimadas {
   por_mes: MesFocos[]
 }
 
+// MapBiomas Alerta. Áreas em hectares, só a parte de cada alerta dentro do
+// município. "por_ano" traz todos os anos de "inicio" a "fim", com zeros.
+export interface Desmatamento {
+  distrito_federal: boolean
+  inicio: string
+  fim: string
+  atualizado_em: string | null
+  alertas: number
+  area_ha: number
+  maior: { alerta: number; data: string; area_ha: number; area_municipio: number } | null
+  por_ano: { ano: number; alertas: number; area_ha: number }[]
+  tamanhos: { de: number; ate: number | null; alertas: number; area_ha: number }[]
+  cruzamentos: { cruzamento: string; alertas: number; area_ha: number }[]
+  biomas: { bioma: string; area_ha: number }[]
+}
+
 export interface QualidadeDoAr {
   distrito_federal: boolean
   poluentes: PoluenteAr[]
@@ -203,6 +219,12 @@ export const consultas = {
     queryOptions({
       queryKey: ['queimadas', codigo],
       queryFn: ({ signal }) => pegar<Queimadas>(`/municipios/${encodeURIComponent(codigo)}/queimadas`, signal),
+      ...PARA_SEMPRE,
+    }),
+  desmatamento: (codigo: string) =>
+    queryOptions({
+      queryKey: ['desmatamento', codigo],
+      queryFn: ({ signal }) => pegar<Desmatamento>(`/municipios/${encodeURIComponent(codigo)}/desmatamento`, signal),
       ...PARA_SEMPRE,
     }),
   resumoVigilancia: (codigo: string, ano: number, motivo: string) =>
