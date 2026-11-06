@@ -3,7 +3,8 @@
 Dados abertos sobre elementos básicos da vida, por município:
 
 - **água:** vigilância e controle fora do padrão, do SISAGUA/OpenDataSUS;
-- **ar:** estimativas diárias de poluentes do SISAM/INPE.
+- **ar:** estimativas diárias de poluentes do SISAM/INPE;
+- **queimadas:** focos detectados por satélite, do Programa Queimadas/INPE.
 
 ## Requisitos
 
@@ -21,9 +22,10 @@ Os dados ficam em `data/`, que não é versionada. Todos os comandos aceitam `--
 5. Para baixar os dados da água, execute `uv run elementar-arquivos`.
 6. Os dados sobre a qualidade da agua precisam ser "tratados", então execute `uv run elementar-servido`
 7. Para baixar os dados do ar, execute `uv run elementar-sisam`. A primeira carga leva cerca de 7 horas.
-8. Para subir o site e a API, execute `uv run elementar-api` e abra http://127.0.0.1:8000.
-9. Para instalar as dependências do front, entre em `frontend/` e execute `npm install`.
-10. Dentro da pasta `frontend/` execute `npm run dev` ou para compilar o front.
+8. Para baixar os focos de queimadas, execute `uv run elementar-queimadas`.
+9. Para subir o site e a API, execute `uv run elementar-api` e abra http://127.0.0.1:8000.
+10. Para instalar as dependências do front, entre em `frontend/` e execute `npm install`.
+11. Dentro da pasta `frontend/` execute `npm run dev` ou para compilar o front.
 
 ## Água (OpenDataSUS)
 
@@ -52,6 +54,16 @@ O manifesto evita baixar de novo o que já está gravado:
 - meses já completos são pulados;
 - no mês em andamento, só os dias novos são buscados;
 - um mês baixado da previsão é refeito quando a reanálise passa a cobri-lo.
+
+## Queimadas (Programa Queimadas/INPE)
+
+Os focos vêm do servidor de dados do INPE, o mesmo do BDQueimadas, sem chave. Só entra o satélite de referência (AQUA, passagem da tarde), que é a série usada pelo INPE para comparar períodos.
+
+- Para baixar de 2014 até hoje, execute `uv run elementar-queimadas`.
+- Para testar com um ano, execute `uv run elementar-queimadas --inicio 2025 --fim 2025`.
+- Para ignorar o manifesto e baixar tudo de novo, execute `uv run elementar-queimadas --forcar`.
+
+Anos fechados vêm do arquivo anual. O ano corrente vem dos arquivos mensais até o INPE publicar o anual, que então os substitui. Os dados ficam em `data/parquet/bruto/queimadas_focos/ano=AAAA/mes=MM/`. O manifesto fica em `data/parquet/bruto/queimadas_focos/manifesto.json` e guarda o ETag de cada arquivo, então só é baixado o que mudou.
 
 ## API e site
 
