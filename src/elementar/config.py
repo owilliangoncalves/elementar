@@ -1,6 +1,7 @@
 """Leitura do endpoints.toml e caminhos compartilhados entre as etapas."""
 
 import logging
+import os
 import re
 import tomllib
 import unicodedata
@@ -56,3 +57,19 @@ def configurar_log() -> None:
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
     )
+
+
+def segredo(nome: str, env: Path = Path(".env")) -> str:
+    """Variável de ambiente ou, se faltar, a linha ``NOME=valor`` do ``.env``."""
+    if valor := os.environ.get(nome):
+        return valor
+    if env.exists():
+        for linha in env.read_text(encoding="utf-8").splitlines():
+            chave, igual, valor = linha.partition("=")
+            if (
+                igual
+                and chave.strip() == nome
+                and (valor := valor.strip().strip("\"'"))
+            ):
+                return valor
+    raise SystemExit(f"Defina {nome} no ambiente ou no arquivo .env")

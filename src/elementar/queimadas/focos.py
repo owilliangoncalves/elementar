@@ -7,7 +7,7 @@ comparar períodos, e somar todos os satélites conta o mesmo fogo várias vezes
 
 - Anos com arquivo anual (``anual/Brasil_sat_ref/focos_br_ref_AAAA.zip``): o
   arquivo só traz o nome do município, e o código vem da lista do IBGE,
-  casando UF e nome (mais ``APELIDOS`` para grafias próprias do INPE).
+  casando UF e nome (``elementar.ibge``).
 - Anos sem anual, como o corrente: arquivos de ``mensal/Brasil/``, que têm o
   código IBGE e todos os satélites, filtrados para o de referência.
 
@@ -39,30 +39,16 @@ from elementar.arquivos.download import baixar
 from elementar.arquivos.fontes import primeiro_ano
 from elementar.arquivos.trava import travar
 from elementar.config import DADOS_PADRAO, configurar_log
+from elementar.ibge import municipios_ibge, preparar_nomes
 
 BASE = "https://dataserver-coids.inpe.br/queimadas/queimadas/focos/csv"
 ANUAL = f"{BASE}/anual/Brasil_sat_ref"
 MENSAL = f"{BASE}/mensal/Brasil"
-IBGE = "https://servicodados.ibge.gov.br/api/v1/localidades/municipios?view=nivelado"
 CABECALHOS = {
     "User-Agent": "elementar (+https://github.com/owilliangoncalves/elementar)"
 }
 TABELA = "queimadas_focos"
 SATELITE = "AQUA_M-T"
-
-# Grafias do INPE que diferem do IBGE (nome no INPE, código IBGE).
-APELIDOS = [
-    ("AÇU", 2400208),  # Assú (RN)
-    ("ARÊS", 2401206),  # Arez (RN)
-    ("AUGUSTO SEVERO", 2401305),  # Campo Grande (RN)
-    ("BARÃO DE MONTE ALTO", 3105509),  # Barão do Monte Alto (MG)
-    ("DONA EUSÉBIA", 3122900),  # Dona Euzébia (MG)
-    ("FORTALEZA DO TABOCÃO", 1708254),  # Tabocão (TO)
-    ("GRACHO CARDOSO", 2802601),  # Graccho Cardoso (SE)
-    ("SANTO ANTÔNIO DO LEVERGER", 5107800),  # Santo Antônio de Leverger (MT)
-    ("SÃO LUIZ", 1400605),  # São Luiz do Anauá (RR)
-    ("SÃO THOMÉ DAS LETRAS", 3165206),  # São Tomé das Letras (MG)
-]
 
 # Mesmas colunas, na mesma ordem, para as duas origens.
 SELECAO_ANUAL = """
@@ -140,18 +126,6 @@ def fontes(cliente: httpx.Client, inicio: int, fim: int) -> list[Fonte]:
     return lista
 
 
-def municipios_ibge(cliente: httpx.Client, destino: Path) -> Path:
-    """Lista de municípios do IBGE, baixada uma vez e guardada em ``destino``."""
-    if not destino.exists():
-        log.info("%s: baixando a lista de municípios do IBGE", TABELA)
-        resposta = cliente.get(IBGE)
-        resposta.raise_for_status()
-        temporario = destino.with_name(destino.name + ".tmp")
-        temporario.write_bytes(resposta.content)
-        temporario.rename(destino)
-    return destino
-
-
 def extrair(arquivo: Path, trabalho: Path) -> Path:
     """O CSV baixado, extraído do zip quando for o caso (já vem em UTF-8)."""
     if arquivo.suffix != ".zip":
@@ -165,28 +139,6 @@ def extrair(arquivo: Path, trabalho: Path) -> Path:
             shutil.copyfileobj(origem, saida)
     arquivo.unlink()  # libera espaço antes da conversão
     return csv
-
-
-def preparar_nomes(con: duckdb.DuckDBPyConnection, ibge: Path) -> None:
-    """Tabelas para achar o código IBGE pela UF e pelo nome normalizado."""
-    con.execute(
-        "CREATE MACRO norma(s) AS "
-        "regexp_replace(upper(strip_accents(trim(s))), '[^A-Z0-9]', '', 'g')"
-    )
-    json_ = f"read_json({literal(ibge)})"
-    con.execute(
-        'CREATE TABLE municipios AS SELECT CAST("UF-id" AS INTEGER) AS uf, '
-        'norma("municipio-nome") AS nome, '
-        f'CAST("municipio-id" AS INTEGER) AS codigo FROM {json_}'
-    )
-    con.execute(
-        'CREATE TABLE ufs AS SELECT DISTINCT CAST("UF-id" AS INTEGER) AS codigo, '
-        f'norma("UF-nome") AS nome FROM {json_}'
-    )
-    con.execute("CREATE TABLE apelidos (nome VARCHAR, codigo INTEGER)")
-    con.executemany("INSERT INTO apelidos VALUES (norma(?), ?)", APELIDOS)
-    con.execute("ALTER TABLE apelidos ADD COLUMN uf INTEGER")
-    con.execute("UPDATE apelidos SET uf = codigo // 100000")
 
 
 def avisar_sem_municipio(con: duckdb.DuckDBPyConnection, rotulo: str) -> int:
