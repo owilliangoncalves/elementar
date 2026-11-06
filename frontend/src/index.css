@@ -34,6 +34,13 @@
   /* Parâmetros: mesma luminosidade e saturação, só o matiz muda (lib/cores.ts). */
   --param-l: 0.6;
   --param-c: 0.14;
+  /* Focos de queimadas: um só matiz (brasa), do claro ao escuro conforme aumenta.
+     Validada como escala ordinal contra a superfície nos dois temas. */
+  --fogo-1: oklch(0.78 0.11 55);
+  --fogo-2: oklch(0.69 0.14 48);
+  --fogo-3: oklch(0.6 0.16 40);
+  --fogo-4: oklch(0.51 0.17 34);
+  --fogo-5: oklch(0.42 0.15 30);
   color-scheme: light;
 }
 
@@ -51,6 +58,12 @@
   --motivo-surto: #008300;
   --param-l: 0.74;
   --param-c: 0.13;
+  /* No escuro a escala se inverte: mais focos, mais brilho. */
+  --fogo-1: oklch(0.47 0.1 35);
+  --fogo-2: oklch(0.57 0.13 40);
+  --fogo-3: oklch(0.67 0.15 45);
+  --fogo-4: oklch(0.77 0.14 52);
+  --fogo-5: oklch(0.87 0.11 60);
   color-scheme: dark;
 }
 
