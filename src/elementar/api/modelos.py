@@ -144,3 +144,34 @@ class QualidadeDoAr(BaseModel):
 
     distrito_federal: bool
     poluentes: list[PoluenteAr]
+
+
+class MesFocos(BaseModel):
+    mes: str  # AAAA-MM
+    focos: int
+
+
+class DiaFocos(BaseModel):
+    data: date
+    focos: int
+
+
+class BiomaFocos(BaseModel):
+    bioma: str
+    focos: int
+
+
+class Queimadas(BaseModel):
+    """Focos do satélite de referência do INPE. ``por_mes`` só traz meses com
+    focos; os demais meses de ``inicio`` a ``fim`` tiveram zero. No DF, as
+    Regiões Administrativas recebem o Distrito Federal inteiro."""
+
+    distrito_federal: bool
+    inicio: str  # AAAA-MM
+    fim: str  # AAAA-MM, parcial até ``atualizado_ate``
+    atualizado_ate: date
+    total: int
+    pior_mes: MesFocos | None
+    pior_dia: DiaFocos | None
+    biomas: list[BiomaFocos]
+    por_mes: list[MesFocos]
