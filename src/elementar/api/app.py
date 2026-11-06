@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 
 from elementar.api.base import Base
 from elementar.api.modelos import (
+    Desmatamento,
     Estado,
     Municipio,
     MunicipioDaUf,
@@ -152,6 +153,16 @@ def queimadas(request: Request, codigo: CodigoIbge) -> Queimadas:
     resultado = base(request).queimadas(codigo)
     if resultado is None:
         raise HTTPException(404, "Focos de queimadas não carregados")
+    return resultado
+
+
+@app.get("/municipios/{codigo}/desmatamento")
+def desmatamento(request: Request, codigo: CodigoIbge) -> Desmatamento:
+    """Alertas de desmatamento do MapBiomas Alerta: área por ano, faixas de
+    tamanho, cruzamentos e o maior alerta. 404 se os alertas não foram baixados."""
+    resultado = base(request).desmatamento(codigo)
+    if resultado is None:
+        raise HTTPException(404, "Alertas de desmatamento não carregados")
     return resultado
 
 
