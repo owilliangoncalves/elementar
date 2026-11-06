@@ -29,6 +29,7 @@ from elementar.api.modelos import (
     ParametroControle,
     ParametroVigilancia,
     QualidadeDoAr,
+    Queimadas,
 )
 from elementar.config import DADOS_PADRAO, configurar_log
 
@@ -142,6 +143,16 @@ def qualidade_do_ar(request: Request, codigo: CodigoIbge) -> QualidadeDoAr:
     """Estimativas diárias do SISAM (INPE): médias mensais e o maior e o menor
     valor diário de cada poluente. Lista vazia se não houver dados."""
     return base(request).qualidade_do_ar(codigo)
+
+
+@app.get("/municipios/{codigo}/queimadas")
+def queimadas(request: Request, codigo: CodigoIbge) -> Queimadas:
+    """Focos de queimadas do satélite de referência do INPE por mês, com o pior
+    mês, o pior dia e a divisão por bioma. 404 se os focos não foram baixados."""
+    resultado = base(request).queimadas(codigo)
+    if resultado is None:
+        raise HTTPException(404, "Focos de queimadas não carregados")
+    return resultado
 
 
 @app.get("/municipios/{codigo}/{tabela}")

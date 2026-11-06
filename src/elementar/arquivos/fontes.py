@@ -81,3 +81,8 @@ def carregar_arquivos(
         else:
             arquivos.append(Arquivo(tabela, url, coluna_ano=item["coluna_ano"]))
     return arquivos
+
+
+def primeiro_ano(caminho: Path = ARQUIVOS_TOML) -> int:
+    """Primeiro ano da vigilância da água (``ano_inicial``), início das outras séries."""
+    return min(a.ano for a in carregar_arquivos(caminho) if a.ano is not None)
