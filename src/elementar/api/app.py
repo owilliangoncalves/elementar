@@ -28,6 +28,7 @@ from elementar.api.modelos import (
     Pagina,
     ParametroControle,
     ParametroVigilancia,
+    QualidadeDoAr,
 )
 from elementar.config import DADOS_PADRAO, configurar_log
 
@@ -134,6 +135,13 @@ def resumo_controle(
 ) -> list[ParametroControle]:
     """Registros fora do padrão do ano por parâmetro: zona, ponto e áreas."""
     return base(request).resumo_controle(codigo, ano)
+
+
+@app.get("/municipios/{codigo}/ar")
+def qualidade_do_ar(request: Request, codigo: CodigoIbge) -> QualidadeDoAr:
+    """Estimativas diárias do SISAM (INPE): médias mensais e o maior e o menor
+    valor diário de cada poluente. Lista vazia se não houver dados."""
+    return base(request).qualidade_do_ar(codigo)
 
 
 @app.get("/municipios/{codigo}/{tabela}")
