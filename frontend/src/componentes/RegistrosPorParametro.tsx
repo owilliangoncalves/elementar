@@ -12,6 +12,7 @@ import {
 import { corDoParametro, corDoPh, ehPh, gradienteDoPh } from '../lib/cores'
 import { fmt, tituloNome } from '../lib/formato'
 import { OPCOES_POLUENTE, QualidadeDoAr } from './QualidadeDoAr'
+import { Queimadas } from './Queimadas'
 import { Aviso, Barra, Carregando, Falha, Pilula, Seletor, cn } from './ui'
 
 const VIGILANCIA = 'var(--color-vigilancia)'
@@ -39,8 +40,8 @@ const MESES = Array.from({ length: 12 }, (_, i) =>
   new Date(2000, i, 1).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
 )
 
-// A qualidade do ar divide a barra com as fontes da água, mas não tem ano nem motivo.
-type Aba = Tabela | 'ar'
+// Ar e queimadas dividem a barra com as fontes da água, mas não têm ano nem motivo.
+type Aba = Tabela | 'ar' | 'queimadas'
 
 // Os gráficos de cada fonte no ano escolhido, um cartão por parâmetro.
 export function RegistrosPorParametro({ municipio }: { municipio: Municipio }) {
@@ -48,15 +49,21 @@ export function RegistrosPorParametro({ municipio }: { municipio: Municipio }) {
     vigilancia: municipio.vigilancia?.por_ano,
     controle: municipio.controle_fora_do_padrao?.por_ano,
   }
-  const anoMaisRecente = (t: Aba) => (t === 'ar' ? 0 : Math.max(...(fontes[t] ?? []).map((a) => a.ano)))
+  const anoMaisRecente = (t: Aba) =>
+    t === 'ar' || t === 'queimadas' ? 0 : Math.max(...(fontes[t] ?? []).map((a) => a.ano))
 
   const ar = useQuery(consultas.qualidadeDoAr(municipio.codigo_ibge))
   const poluentes = ar.data?.poluentes ?? []
   // Com erro a aba aparece, para a falha ser vista em vez de a fonte sumir.
   const mostrarAr = poluentes.length > 0 || ar.isError
+  // Zero focos também é informação: a aba aparece sempre que os focos foram carregados.
+  const queimadas = useQuery(consultas.queimadas(municipio.codigo_ibge))
+  const mostrarQueimadas = queimadas.isSuccess
 
-  const [tabela, setTabela] = useState<Aba>(fontes.vigilancia ? 'vigilancia' : fontes.controle ? 'controle' : 'ar')
-  const [ano, setAno] = useState(() => anoMaisRecente(tabela))
+  const [escolhida, setTabela] = useState<Aba>(fontes.vigilancia ? 'vigilancia' : fontes.controle ? 'controle' : 'ar')
+  // Sem água, a aba inicial é o ar; se o município não tiver ar, cai nas queimadas.
+  const tabela: Aba = escolhida === 'ar' && !mostrarAr && mostrarQueimadas ? 'queimadas' : escolhida
+  const [ano, setAno] = useState(() => anoMaisRecente(escolhida))
   const [motivo, setMotivo] = useState('')
   const [poluente, setPoluente] = useState('pm25')
 
@@ -68,8 +75,8 @@ export function RegistrosPorParametro({ municipio }: { municipio: Municipio }) {
   })
   const motivos = somarMotivos(vigilancia.data ?? [])
 
-  if (!fontes.vigilancia && !fontes.controle && !mostrarAr)
-    return ar.isPending ? <Carregando /> : <Aviso>Sem registros para este município.</Aviso>
+  if (!fontes.vigilancia && !fontes.controle && !mostrarAr && !mostrarQueimadas)
+    return ar.isPending || queimadas.isPending ? <Carregando /> : <Aviso>Sem registros para este município.</Aviso>
 
   const trocarTabela = (t: Aba) => {
     setTabela(t)
@@ -95,8 +102,13 @@ export function RegistrosPorParametro({ municipio }: { municipio: Municipio }) {
             Qualidade do ar
           </Pilula>
         )}
+        {mostrarQueimadas && (
+          <Pilula ativa={tabela === 'queimadas'} onClick={() => trocarTabela('queimadas')}>
+            Queimadas
+          </Pilula>
+        )}
         <span className="flex-1" />
-        {tabela === 'ar' ? (
+        {tabela === 'queimadas' ? null : tabela === 'ar' ? (
           poluentes.length > 0 && (
             <Seletor
               rotulo="Poluente"
@@ -133,7 +145,9 @@ export function RegistrosPorParametro({ municipio }: { municipio: Municipio }) {
           />
         )}
       </div>
-      {tabela === 'ar' ? (
+      {tabela === 'queimadas' ? (
+        <Queimadas consulta={queimadas} />
+      ) : tabela === 'ar' ? (
         <QualidadeDoAr consulta={ar} poluente={poluente} />
       ) : tabela === 'vigilancia' ? (
         <Vigilancia consulta={vigilancia} ano={ano} motivo={motivo} motivos={motivos} />
