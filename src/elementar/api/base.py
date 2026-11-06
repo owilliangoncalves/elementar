@@ -11,7 +11,8 @@ interpretado. Dados novos do pipeline valem a partir do próximo reinício.
 A qualidade do ar (``elementar-sisam``) vem da camada bruta: na inicialização
 viram médias mensais e os extremos diários por município e poluente. Os focos
 de queimadas (``elementar-queimadas``) também: viram contagens por dia, mês e
-bioma.
+bioma. Os alertas de desmatamento (``elementar-desmatamento``) ficam inteiros
+numa tabela pequena (uma linha por alerta) e são somados a cada consulta.
 """
 
 import logging
@@ -31,6 +32,23 @@ AREAS = 5  # áreas listadas por parâmetro no controle; o resto vira "outras"
 AR = "ar_sisam"
 POLUENTES = ("pm25", "pm10", "o3", "no2", "so2", "co")
 QUEIMADAS = "queimadas_focos"
+DESMATAMENTO = "desmatamento_alertas"
+# Faixas de tamanho do alerta inteiro (ha), as mesmas da plataforma MapBiomas.
+FAIXAS_AREA = (1, 5, 10, 25, 50, 100)
+# Cruzamentos de cada alerta, na ordem em que a API devolve.
+CRUZAMENTOS = {
+    "car": "car_count > 0",
+    "reserva_legal": "legal_reserve_count > 0",
+    "app": "ppa_count > 0",
+    "nascente": "river_source_count > 0",
+    "embargo": "embargoed_properties_count > 0",
+    "autorizacao": "def_asv > 0 OR def_uas > 0 OR def_pmfs > 0 OR def_poa > 0 "
+    "OR def_efp > 0",
+    "terra_indigena": "indigenous_land_area > 0",
+    "unidade_conservacao": "conservation_unit_area > 0",
+    "assentamento": "settlement_area > 0",
+    "quilombo": "quilombo_area > 0",
+}
 # SISAM e INPE têm só Brasília; o SISAGUA divide o DF em Regiões Administrativas.
 BRASILIA = "530010"
 
@@ -57,6 +75,7 @@ class Base:
         self._materializar()
         self._materializar_ar(dados / "parquet" / "bruto" / AR)
         self._materializar_queimadas(dados / "parquet" / "bruto" / QUEIMADAS)
+        self._materializar_desmatamento(dados / "parquet" / "bruto" / DESMATAMENTO)
 
     def _materializar(self) -> None:
         self.con.execute(
@@ -177,6 +196,40 @@ class Base:
         )
         ((dias,),) = self.con.execute("SELECT count(*) FROM focos_dia").fetchall()
         log.info("%s: focos prontos (%d municípios-dia)", QUEIMADAS, dias)
+
+    def _materializar_desmatamento(self, pasta: Path) -> None:
+        """Um alerta por linha, com a área dentro do município (``city_area``),
+        a faixa de tamanho e os cruzamentos já calculados."""
+        registro = manifesto.ler(pasta / "manifesto.json").get("relatorio", {})
+        self.desmatamento_atualizado = registro.get("last_update")
+        arquivos = str(pasta / "*" / "dados.parquet").replace("'", "''")
+        colunas_cruzamento = ", ".join(
+            f"coalesce({condicao}, false) AS {nome}"
+            for nome, condicao in CRUZAMENTOS.items()
+        )
+        tipos_cruzamento = ", ".join(f"{nome} BOOLEAN" for nome in CRUZAMENTOS)
+        if not any(pasta.glob("*/dados.parquet")):
+            log.warning("%s: sem alertas de desmatamento em %s", DESMATAMENTO, pasta)
+            self.con.execute(
+                "CREATE TABLE alertas (codigo_ibge VARCHAR, alerta BIGINT, "
+                "data DATE, area_ha DOUBLE, area_municipio DOUBLE, faixa INTEGER, "
+                f"bioma VARCHAR, {tipos_cruzamento})"
+            )
+            return
+        faixa = " + ".join(f"(area_ha >= {limite})::INTEGER" for limite in FAIXAS_AREA)
+        self.con.execute(
+            f"""
+            CREATE TABLE alertas AS
+            SELECT (codigo_ibge // 10)::VARCHAR AS codigo_ibge, alert_code AS alerta,
+                   detected_at AS data, area_ha, city_area AS area_municipio,
+                   {faixa} AS faixa, biome AS bioma, {colunas_cruzamento}
+            FROM read_parquet('{arquivos}', hive_partitioning = true)
+            WHERE codigo_ibge IS NOT NULL
+            ORDER BY codigo_ibge, data
+            """
+        )
+        ((total,),) = self.con.execute("SELECT count(*) FROM alertas").fetchall()
+        log.info("%s: %d alertas prontos", DESMATAMENTO, total)
 
     def _cursor(self) -> duckdb.DuckDBPyConnection:
         # Um cursor por chamada: a conexão é compartilhada entre threads.
@@ -354,6 +407,88 @@ class Base:
             "pior_dia": pior_dia[0] if pior_dia else None,
             "biomas": biomas,
             "por_mes": por_mes,
+        }
+
+    def desmatamento(self, codigo: str) -> dict[str, Any] | None:
+        """None se os alertas não foram carregados. Áreas em hectares, só a
+        parte de cada alerta dentro do município."""
+        distrito_federal = codigo.startswith("53")
+        if distrito_federal:
+            codigo = BRASILIA
+        cursor = self._cursor()
+        ((inicio, fim),) = cursor.execute(
+            "SELECT min(data), max(data) FROM alertas"
+        ).fetchall()
+        if inicio is None:
+            return None
+        cursor.execute(
+            "SELECT year(data) AS ano, count(*)::INTEGER AS alertas, "
+            "sum(area_municipio) AS area_ha FROM alertas WHERE codigo_ibge = ? "
+            "GROUP BY ano",
+            [codigo],
+        )
+        anos = {a["ano"]: a for a in _linhas(cursor)}
+        por_ano = [
+            anos.get(ano, {"ano": ano, "alertas": 0, "area_ha": 0.0})
+            for ano in range(inicio.year, fim.year + 1)
+        ]
+        cursor.execute(
+            "SELECT faixa, count(*)::INTEGER AS alertas, "
+            "sum(area_municipio) AS area_ha FROM alertas WHERE codigo_ibge = ? "
+            "GROUP BY faixa",
+            [codigo],
+        )
+        faixas = {f["faixa"]: f for f in _linhas(cursor)}
+        limites = (0, *FAIXAS_AREA, None)
+        tamanhos = [
+            {
+                "de": limites[i],
+                "ate": limites[i + 1],
+                "alertas": faixas.get(i, {}).get("alertas", 0),
+                "area_ha": faixas.get(i, {}).get("area_ha", 0.0),
+            }
+            for i in range(len(FAIXAS_AREA) + 1)
+        ]
+        somas = ", ".join(
+            f"count(*) FILTER (WHERE {n})::INTEGER, "
+            f"coalesce(sum(area_municipio) FILTER (WHERE {n}), 0)"
+            for n in CRUZAMENTOS
+        )
+        (valores,) = cursor.execute(
+            f"SELECT {somas} FROM alertas WHERE codigo_ibge = ?", [codigo]
+        ).fetchall()
+        cruzamentos = [
+            {
+                "cruzamento": nome,
+                "alertas": valores[2 * i],
+                "area_ha": valores[2 * i + 1],
+            }
+            for i, nome in enumerate(CRUZAMENTOS)
+        ]
+        cursor.execute(
+            "SELECT alerta, data, area_ha, area_municipio FROM alertas "
+            "WHERE codigo_ibge = ? ORDER BY area_municipio DESC, data DESC LIMIT 1",
+            [codigo],
+        )
+        maior = _linhas(cursor)
+        cursor.execute(
+            "SELECT bioma, sum(area_municipio) AS area_ha FROM alertas "
+            "WHERE codigo_ibge = ? GROUP BY bioma ORDER BY area_ha DESC",
+            [codigo],
+        )
+        biomas = _linhas(cursor)
+        return {
+            "distrito_federal": distrito_federal,
+            "inicio": inicio.strftime("%Y-%m"),
+            "fim": fim.strftime("%Y-%m"),
+            "atualizado_em": self.desmatamento_atualizado,
+            "alertas": sum(a["alertas"] for a in por_ano),
+            "area_ha": sum(a["area_ha"] for a in por_ano),
+            "maior": maior[0] if maior else None,
+            "por_ano": por_ano,
+            "tamanhos": tamanhos,
+            "cruzamentos": cruzamentos,
+            "biomas": biomas,
         }
 
     def municipios_com_totais(self, uf: str | None = None) -> list[dict[str, Any]]:

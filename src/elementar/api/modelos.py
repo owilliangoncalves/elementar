@@ -175,3 +175,56 @@ class Queimadas(BaseModel):
     pior_dia: DiaFocos | None
     biomas: list[BiomaFocos]
     por_mes: list[MesFocos]
+
+
+class AnoDesmatamento(BaseModel):
+    ano: int
+    alertas: int
+    area_ha: float
+
+
+class FaixaDeTamanho(BaseModel):
+    """Alertas com área inteira de ``de`` (inclusive) até ``ate`` hectares."""
+
+    de: float
+    ate: float | None
+    alertas: int
+    area_ha: float
+
+
+class Cruzamento(BaseModel):
+    """Alertas que cruzam a categoria; um alerta pode cruzar várias."""
+
+    cruzamento: str
+    alertas: int
+    area_ha: float
+
+
+class MaiorAlerta(BaseModel):
+    alerta: int  # código na plataforma MapBiomas Alerta
+    data: date
+    area_ha: float  # o alerta inteiro
+    area_municipio: float
+
+
+class BiomaArea(BaseModel):
+    bioma: str
+    area_ha: float
+
+
+class Desmatamento(BaseModel):
+    """Alertas validados do MapBiomas Alerta, por data de detecção. As áreas são
+    a parte de cada alerta dentro do município; no DF, o Distrito Federal
+    inteiro. ``por_ano`` traz todos os anos de ``inicio`` a ``fim``."""
+
+    distrito_federal: bool
+    inicio: str  # AAAA-MM
+    fim: str  # AAAA-MM
+    atualizado_em: date | None  # geração do relatório pelo MapBiomas
+    alertas: int
+    area_ha: float
+    maior: MaiorAlerta | None
+    por_ano: list[AnoDesmatamento]
+    tamanhos: list[FaixaDeTamanho]
+    cruzamentos: list[Cruzamento]
+    biomas: list[BiomaArea]
