@@ -12,6 +12,7 @@ import {
 import { corDoParametro, corDoPh, ehPh, gradienteDoPh } from '../lib/cores'
 import { fmt, tituloNome } from '../lib/formato'
 import { OPCOES_POLUENTE, QualidadeDoAr } from './QualidadeDoAr'
+import { Desmatamento } from './Desmatamento'
 import { Queimadas } from './Queimadas'
 import { Aviso, Barra, Carregando, Falha, Pilula, Seletor, cn } from './ui'
 
@@ -40,8 +41,8 @@ const MESES = Array.from({ length: 12 }, (_, i) =>
   new Date(2000, i, 1).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
 )
 
-// Ar e queimadas dividem a barra com as fontes da água, mas não têm ano nem motivo.
-type Aba = Tabela | 'ar' | 'queimadas'
+// Ar, queimadas e desmatamento dividem a barra com as fontes da água, mas não têm ano nem motivo.
+type Aba = Tabela | 'ar' | 'queimadas' | 'desmatamento'
 
 // Os gráficos de cada fonte no ano escolhido, um cartão por parâmetro.
 export function RegistrosPorParametro({ municipio }: { municipio: Municipio }) {
@@ -50,7 +51,7 @@ export function RegistrosPorParametro({ municipio }: { municipio: Municipio }) {
     controle: municipio.controle_fora_do_padrao?.por_ano,
   }
   const anoMaisRecente = (t: Aba) =>
-    t === 'ar' || t === 'queimadas' ? 0 : Math.max(...(fontes[t] ?? []).map((a) => a.ano))
+    t === 'ar' || t === 'queimadas' || t === 'desmatamento' ? 0 : Math.max(...(fontes[t] ?? []).map((a) => a.ano))
 
   const ar = useQuery(consultas.qualidadeDoAr(municipio.codigo_ibge))
   const poluentes = ar.data?.poluentes ?? []
@@ -59,10 +60,19 @@ export function RegistrosPorParametro({ municipio }: { municipio: Municipio }) {
   // Zero focos também é informação: a aba aparece sempre que os focos foram carregados.
   const queimadas = useQuery(consultas.queimadas(municipio.codigo_ibge))
   const mostrarQueimadas = queimadas.isSuccess
+  const desmatamento = useQuery(consultas.desmatamento(municipio.codigo_ibge))
+  const mostrarDesmatamento = desmatamento.isSuccess
 
   const [escolhida, setTabela] = useState<Aba>(fontes.vigilancia ? 'vigilancia' : fontes.controle ? 'controle' : 'ar')
-  // Sem água, a aba inicial é o ar; se o município não tiver ar, cai nas queimadas.
-  const tabela: Aba = escolhida === 'ar' && !mostrarAr && mostrarQueimadas ? 'queimadas' : escolhida
+  // Sem água, a aba inicial é o ar; sem ar, a primeira das outras fontes carregadas.
+  const tabela: Aba =
+    escolhida === 'ar' && !mostrarAr
+      ? mostrarQueimadas
+        ? 'queimadas'
+        : mostrarDesmatamento
+          ? 'desmatamento'
+          : escolhida
+      : escolhida
   const [ano, setAno] = useState(() => anoMaisRecente(escolhida))
   const [motivo, setMotivo] = useState('')
   const [poluente, setPoluente] = useState('pm25')
@@ -75,8 +85,12 @@ export function RegistrosPorParametro({ municipio }: { municipio: Municipio }) {
   })
   const motivos = somarMotivos(vigilancia.data ?? [])
 
-  if (!fontes.vigilancia && !fontes.controle && !mostrarAr && !mostrarQueimadas)
-    return ar.isPending || queimadas.isPending ? <Carregando /> : <Aviso>Sem registros para este município.</Aviso>
+  if (!fontes.vigilancia && !fontes.controle && !mostrarAr && !mostrarQueimadas && !mostrarDesmatamento)
+    return ar.isPending || queimadas.isPending || desmatamento.isPending ? (
+      <Carregando />
+    ) : (
+      <Aviso>Sem registros para este município.</Aviso>
+    )
 
   const trocarTabela = (t: Aba) => {
     setTabela(t)
@@ -107,8 +121,13 @@ export function RegistrosPorParametro({ municipio }: { municipio: Municipio }) {
             Queimadas
           </Pilula>
         )}
+        {mostrarDesmatamento && (
+          <Pilula ativa={tabela === 'desmatamento'} onClick={() => trocarTabela('desmatamento')}>
+            Desmatamento
+          </Pilula>
+        )}
         <span className="flex-1" />
-        {tabela === 'queimadas' ? null : tabela === 'ar' ? (
+        {tabela === 'queimadas' || tabela === 'desmatamento' ? null : tabela === 'ar' ? (
           poluentes.length > 0 && (
             <Seletor
               rotulo="Poluente"
@@ -145,7 +164,9 @@ export function RegistrosPorParametro({ municipio }: { municipio: Municipio }) {
           />
         )}
       </div>
-      {tabela === 'queimadas' ? (
+      {tabela === 'desmatamento' ? (
+        <Desmatamento consulta={desmatamento} />
+      ) : tabela === 'queimadas' ? (
         <Queimadas consulta={queimadas} />
       ) : tabela === 'ar' ? (
         <QualidadeDoAr consulta={ar} poluente={poluente} />
