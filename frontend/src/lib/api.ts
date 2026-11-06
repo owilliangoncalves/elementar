@@ -111,6 +111,25 @@ export interface PoluenteAr {
 }
 
 // No DF, as Regiões Administrativas recebem o valor do Distrito Federal inteiro.
+export interface MesFocos {
+  mes: string // AAAA-MM
+  focos: number
+}
+
+// Satélite de referência do INPE. "por_mes" só traz meses com focos: os demais
+// meses de "inicio" a "fim" tiveram zero. "fim" é parcial até "atualizado_ate".
+export interface Queimadas {
+  distrito_federal: boolean
+  inicio: string
+  fim: string
+  atualizado_ate: string
+  total: number
+  pior_mes: MesFocos | null
+  pior_dia: { data: string; focos: number } | null
+  biomas: { bioma: string; focos: number }[]
+  por_mes: MesFocos[]
+}
+
 export interface QualidadeDoAr {
   distrito_federal: boolean
   poluentes: PoluenteAr[]
@@ -178,6 +197,12 @@ export const consultas = {
     queryOptions({
       queryKey: ['ar', codigo],
       queryFn: ({ signal }) => pegar<QualidadeDoAr>(`/municipios/${encodeURIComponent(codigo)}/ar`, signal),
+      ...PARA_SEMPRE,
+    }),
+  queimadas: (codigo: string) =>
+    queryOptions({
+      queryKey: ['queimadas', codigo],
+      queryFn: ({ signal }) => pegar<Queimadas>(`/municipios/${encodeURIComponent(codigo)}/queimadas`, signal),
       ...PARA_SEMPRE,
     }),
   resumoVigilancia: (codigo: string, ano: number, motivo: string) =>
