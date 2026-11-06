@@ -9,7 +9,9 @@ Só contagens, sem tratamento dos valores: ``resultado`` ainda não é
 interpretado. Dados novos do pipeline valem a partir do próximo reinício.
 
 A qualidade do ar (``elementar-sisam``) vem da camada bruta: na inicialização
-viram médias mensais e os extremos diários por município e poluente.
+viram médias mensais e os extremos diários por município e poluente. Os focos
+de queimadas (``elementar-queimadas``) também: viram contagens por dia, mês e
+bioma.
 """
 
 import logging
@@ -28,7 +30,8 @@ MOTIVO = "coalesce(motivo_da_coleta, 'Não informado')"
 AREAS = 5  # áreas listadas por parâmetro no controle; o resto vira "outras"
 AR = "ar_sisam"
 POLUENTES = ("pm25", "pm10", "o3", "no2", "so2", "co")
-# O SISAM tem só Brasília; o SISAGUA divide o DF em Regiões Administrativas.
+QUEIMADAS = "queimadas_focos"
+# SISAM e INPE têm só Brasília; o SISAGUA divide o DF em Regiões Administrativas.
 BRASILIA = "530010"
 
 log = logging.getLogger(__name__)
@@ -53,6 +56,7 @@ class Base:
         log.info("calculando agregados a partir de %s", servido)
         self._materializar()
         self._materializar_ar(dados / "parquet" / "bruto" / AR)
+        self._materializar_queimadas(dados / "parquet" / "bruto" / QUEIMADAS)
 
     def _materializar(self) -> None:
         self.con.execute(
@@ -136,6 +140,43 @@ class Base:
             "SELECT count(DISTINCT mes) FROM ar_mensal"
         ).fetchall()
         log.info("%s: qualidade do ar pronta (%d meses)", AR, meses)
+
+    def _materializar_queimadas(self, pasta: Path) -> None:
+        """Focos por município e dia. O código do INPE tem 7 dígitos e vira o de
+        6; o período coberto vale para todos os municípios, com ou sem focos."""
+        arquivos = str(pasta / "*" / "*" / "dados.parquet").replace("'", "''")
+        if not any(pasta.glob("*/*/dados.parquet")):
+            log.warning("%s: sem focos de queimadas em %s", QUEIMADAS, pasta)
+            self.con.execute(
+                "CREATE TABLE focos_dia (codigo_ibge VARCHAR, data DATE, "
+                "focos INTEGER);"
+                "CREATE TABLE focos_bioma (codigo_ibge VARCHAR, bioma VARCHAR, "
+                "focos INTEGER);"
+                "CREATE TABLE focos_periodo (inicio DATE, fim TIMESTAMP)"
+            )
+            return
+        self.con.execute(
+            f"""
+            CREATE VIEW {QUEIMADAS} AS
+            SELECT (codigo_ibge // 10)::VARCHAR AS codigo_ibge, data_hora, bioma,
+                   make_date(ano, mes::INTEGER, 1) AS mes
+            FROM read_parquet('{arquivos}', hive_partitioning = true);
+
+            CREATE TABLE focos_dia AS
+            SELECT codigo_ibge, data_hora::DATE AS data, count(*)::INTEGER AS focos
+            FROM {QUEIMADAS} GROUP BY ALL;
+
+            CREATE TABLE focos_bioma AS
+            SELECT codigo_ibge, bioma, count(*)::INTEGER AS focos
+            FROM {QUEIMADAS} GROUP BY ALL;
+
+            -- Meses com arquivo (mesmo sem focos) e o foco mais recente.
+            CREATE TABLE focos_periodo AS
+            SELECT min(mes) AS inicio, max(data_hora) AS fim FROM {QUEIMADAS};
+            """
+        )
+        ((dias,),) = self.con.execute("SELECT count(*) FROM focos_dia").fetchall()
+        log.info("%s: focos prontos (%d municípios-dia)", QUEIMADAS, dias)
 
     def _cursor(self) -> duckdb.DuckDBPyConnection:
         # Um cursor por chamada: a conexão é compartilhada entre threads.
@@ -272,6 +313,48 @@ class Base:
                 }
             )
         return {"distrito_federal": distrito_federal, "poluentes": poluentes}
+
+    def queimadas(self, codigo: str) -> dict[str, Any] | None:
+        """None se não houver focos carregados para nenhum município."""
+        distrito_federal = codigo.startswith("53")
+        if distrito_federal:
+            codigo = BRASILIA
+        cursor = self._cursor()
+        ((inicio, fim),) = cursor.execute(
+            "SELECT min(inicio), max(fim) FROM focos_periodo"
+        ).fetchall()
+        if inicio is None:
+            return None
+        cursor.execute(
+            "SELECT strftime(data, '%Y-%m') AS mes, sum(focos)::INTEGER AS focos "
+            "FROM focos_dia WHERE codigo_ibge = ? GROUP BY mes ORDER BY mes",
+            [codigo],
+        )
+        por_mes = _linhas(cursor)
+        cursor.execute(
+            "SELECT data, focos FROM focos_dia WHERE codigo_ibge = ? "
+            "ORDER BY focos DESC, data DESC LIMIT 1",
+            [codigo],
+        )
+        pior_dia = _linhas(cursor)
+        cursor.execute(
+            "SELECT bioma, focos FROM focos_bioma WHERE codigo_ibge = ? "
+            "ORDER BY focos DESC",
+            [codigo],
+        )
+        biomas = _linhas(cursor)
+        pior_mes = max(por_mes, key=lambda m: (m["focos"], m["mes"]), default=None)
+        return {
+            "distrito_federal": distrito_federal,
+            "inicio": inicio.strftime("%Y-%m"),
+            "fim": fim.strftime("%Y-%m"),
+            "atualizado_ate": fim.date(),
+            "total": sum(m["focos"] for m in por_mes),
+            "pior_mes": pior_mes,
+            "pior_dia": pior_dia[0] if pior_dia else None,
+            "biomas": biomas,
+            "por_mes": por_mes,
+        }
 
     def municipios_com_totais(self, uf: str | None = None) -> list[dict[str, Any]]:
         """Todos os municípios (ou só os da UF) com o total de cada fonte."""
