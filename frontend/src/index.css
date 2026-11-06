@@ -41,6 +41,10 @@
   --fogo-3: oklch(0.6 0.16 40);
   --fogo-4: oklch(0.51 0.17 34);
   --fogo-5: oklch(0.42 0.15 30);
+  /* Desmatamento: o verde da mata suprimida; o tom claro marca a contagem de
+     alertas ao lado da área. Validados como escala de dois passos. */
+  --mata: oklch(0.52 0.12 155);
+  --mata-claro: oklch(0.74 0.09 155);
   color-scheme: light;
 }
 
@@ -64,6 +68,8 @@
   --fogo-3: oklch(0.67 0.15 45);
   --fogo-4: oklch(0.77 0.14 52);
   --fogo-5: oklch(0.87 0.11 60);
+  --mata: oklch(0.66 0.13 155);
+  --mata-claro: oklch(0.48 0.09 155);
   color-scheme: dark;
 }
 
