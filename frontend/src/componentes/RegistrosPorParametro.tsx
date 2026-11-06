@@ -11,6 +11,7 @@ import {
 } from '../lib/api'
 import { corDoParametro, corDoPh, ehPh, gradienteDoPh } from '../lib/cores'
 import { fmt, tituloNome } from '../lib/formato'
+import { OPCOES_POLUENTE, QualidadeDoAr } from './QualidadeDoAr'
 import { Aviso, Barra, Carregando, Falha, Pilula, Seletor, cn } from './ui'
 
 const VIGILANCIA = 'var(--color-vigilancia)'
@@ -38,17 +39,26 @@ const MESES = Array.from({ length: 12 }, (_, i) =>
   new Date(2000, i, 1).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
 )
 
+// A qualidade do ar divide a barra com as fontes da água, mas não tem ano nem motivo.
+type Aba = Tabela | 'ar'
+
 // Os gráficos de cada fonte no ano escolhido, um cartão por parâmetro.
 export function RegistrosPorParametro({ municipio }: { municipio: Municipio }) {
   const fontes: Record<Tabela, Ano[] | undefined> = {
     vigilancia: municipio.vigilancia?.por_ano,
     controle: municipio.controle_fora_do_padrao?.por_ano,
   }
-  const anoMaisRecente = (t: Tabela) => Math.max(...(fontes[t] ?? []).map((a) => a.ano))
+  const anoMaisRecente = (t: Aba) => (t === 'ar' ? 0 : Math.max(...(fontes[t] ?? []).map((a) => a.ano)))
 
-  const [tabela, setTabela] = useState<Tabela>(fontes.vigilancia ? 'vigilancia' : 'controle')
+  const ar = useQuery(consultas.qualidadeDoAr(municipio.codigo_ibge))
+  const poluentes = ar.data?.poluentes ?? []
+  // Com erro a aba aparece, para a falha ser vista em vez de a fonte sumir.
+  const mostrarAr = poluentes.length > 0 || ar.isError
+
+  const [tabela, setTabela] = useState<Aba>(fontes.vigilancia ? 'vigilancia' : fontes.controle ? 'controle' : 'ar')
   const [ano, setAno] = useState(() => anoMaisRecente(tabela))
   const [motivo, setMotivo] = useState('')
+  const [poluente, setPoluente] = useState('pm25')
 
   // Fica aqui, e não no cartão da vigilância, porque as opções do filtro de motivo vêm dela.
   const vigilancia = useQuery({
@@ -58,9 +68,10 @@ export function RegistrosPorParametro({ municipio }: { municipio: Municipio }) {
   })
   const motivos = somarMotivos(vigilancia.data ?? [])
 
-  if (!fontes.vigilancia && !fontes.controle) return <Aviso>Sem registros para este município.</Aviso>
+  if (!fontes.vigilancia && !fontes.controle && !mostrarAr)
+    return ar.isPending ? <Carregando /> : <Aviso>Sem registros para este município.</Aviso>
 
-  const trocarTabela = (t: Tabela) => {
+  const trocarTabela = (t: Aba) => {
     setTabela(t)
     setAno(anoMaisRecente(t))
     setMotivo('')
@@ -79,19 +90,35 @@ export function RegistrosPorParametro({ municipio }: { municipio: Municipio }) {
             Controle fora do padrão
           </Pilula>
         )}
+        {mostrarAr && (
+          <Pilula ativa={tabela === 'ar'} onClick={() => trocarTabela('ar')}>
+            Qualidade do ar
+          </Pilula>
+        )}
         <span className="flex-1" />
-        <Seletor
-          rotulo="Ano"
-          valor={String(ano)}
-          onMudar={(v) => {
-            setAno(Number(v))
-            setMotivo('')
-          }}
-          opcoes={(fontes[tabela] ?? [])
-            .map((a) => a.ano)
-            .sort((a, b) => b - a)
-            .map((a) => ({ valor: String(a), rotulo: String(a) }))}
-        />
+        {tabela === 'ar' ? (
+          poluentes.length > 0 && (
+            <Seletor
+              rotulo="Poluente"
+              valor={poluente}
+              onMudar={setPoluente}
+              opcoes={OPCOES_POLUENTE.filter((o) => poluentes.some((p) => p.poluente === o.valor))}
+            />
+          )
+        ) : (
+          <Seletor
+            rotulo="Ano"
+            valor={String(ano)}
+            onMudar={(v) => {
+              setAno(Number(v))
+              setMotivo('')
+            }}
+            opcoes={(fontes[tabela] ?? [])
+              .map((a) => a.ano)
+              .sort((a, b) => b - a)
+              .map((a) => ({ valor: String(a), rotulo: String(a) }))}
+          />
+        )}
         {tabela === 'vigilancia' && Object.keys(motivos).length > 1 && (
           <Seletor
             rotulo="Motivo da coleta"
@@ -106,7 +133,9 @@ export function RegistrosPorParametro({ municipio }: { municipio: Municipio }) {
           />
         )}
       </div>
-      {tabela === 'vigilancia' ? (
+      {tabela === 'ar' ? (
+        <QualidadeDoAr consulta={ar} poluente={poluente} />
+      ) : tabela === 'vigilancia' ? (
         <Vigilancia consulta={vigilancia} ano={ano} motivo={motivo} motivos={motivos} />
       ) : (
         <Controle codigo={municipio.codigo_ibge} ano={ano} />
