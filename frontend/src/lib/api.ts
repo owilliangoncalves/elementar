@@ -86,6 +86,36 @@ export interface ParametroControle {
   outras_areas: number
 }
 
+// Qualidade do ar (SISAM): o dia mais recente com o valor; "dias" conta os empates.
+export interface Extremo {
+  valor: number
+  data: string
+  dias: number
+}
+
+export interface MesAr {
+  mes: string // AAAA-MM
+  media: number
+  minimo: number
+  maximo: number
+  dias: number
+  origem: 'reanalise' | 'previsao'
+}
+
+export interface PoluenteAr {
+  poluente: string
+  unidade: string
+  maximo: Extremo
+  minimo: Extremo
+  por_mes: MesAr[]
+}
+
+// No DF, as Regiões Administrativas recebem o valor do Distrito Federal inteiro.
+export interface QualidadeDoAr {
+  distrito_federal: boolean
+  poluentes: PoluenteAr[]
+}
+
 export interface Fonte {
   arquivos: { url: string; modificado_na_fonte: string | null }[]
   baixado_em: string | null
@@ -142,6 +172,12 @@ export const consultas = {
     queryOptions({
       queryKey: ['municipio', codigo],
       queryFn: ({ signal }) => pegar<Municipio>(`/municipios/${encodeURIComponent(codigo)}`, signal),
+      ...PARA_SEMPRE,
+    }),
+  qualidadeDoAr: (codigo: string) =>
+    queryOptions({
+      queryKey: ['ar', codigo],
+      queryFn: ({ signal }) => pegar<QualidadeDoAr>(`/municipios/${encodeURIComponent(codigo)}/ar`, signal),
       ...PARA_SEMPRE,
     }),
   resumoVigilancia: (codigo: string, ano: number, motivo: string) =>
