@@ -4,7 +4,8 @@ Dados abertos sobre elementos básicos da vida, por município:
 
 - **água:** vigilância e controle fora do padrão, do SISAGUA/OpenDataSUS;
 - **ar:** estimativas diárias de poluentes do SISAM/INPE;
-- **queimadas:** focos detectados por satélite, do Programa Queimadas/INPE.
+- **queimadas:** focos detectados por satélite, do Programa Queimadas/INPE;
+- **desmatamento:** alertas validados do MapBiomas Alerta.
 
 ## Requisitos
 
@@ -23,9 +24,10 @@ Os dados ficam em `data/`, que não é versionada. Todos os comandos aceitam `--
 6. Os dados sobre a qualidade da agua precisam ser "tratados", então execute `uv run elementar-servido`
 7. Para baixar os dados do ar, execute `uv run elementar-sisam`. A primeira carga leva cerca de 7 horas.
 8. Para baixar os focos de queimadas, execute `uv run elementar-queimadas`.
-9. Para subir o site e a API, execute `uv run elementar-api` e abra http://127.0.0.1:8000.
-10. Para instalar as dependências do front, entre em `frontend/` e execute `npm install`.
-11. Dentro da pasta `frontend/` execute `npm run dev` ou para compilar o front.
+9. Para baixar os alertas de desmatamento, coloque `MAPBIOMAS_EMAIL` e `MAPBIOMAS_SENHA` no `.env` e execute `uv run elementar-desmatamento`.
+10. Para subir o site e a API, execute `uv run elementar-api` e abra http://127.0.0.1:8000.
+11. Para instalar as dependências do front, entre em `frontend/` e execute `npm install`.
+12. Dentro da pasta `frontend/` execute `npm run dev` ou para compilar o front.
 
 ## Água (OpenDataSUS)
 
@@ -64,6 +66,16 @@ Os focos vêm do servidor de dados do INPE, o mesmo do BDQueimadas, sem chave. S
 - Para ignorar o manifesto e baixar tudo de novo, execute `uv run elementar-queimadas --forcar`.
 
 Anos fechados vêm do arquivo anual. O ano corrente vem dos arquivos mensais até o INPE publicar o anual, que então os substitui. Os dados ficam em `data/parquet/bruto/queimadas_focos/ano=AAAA/mes=MM/`. O manifesto fica em `data/parquet/bruto/queimadas_focos/manifesto.json` e guarda o ETag de cada arquivo, então só é baixado o que mudou.
+
+## Desmatamento (MapBiomas Alerta)
+
+Os alertas vêm da API da plataforma MapBiomas Alerta, que pede uma conta gratuita em https://plataforma.alerta.mapbiomas.org.
+
+- Para configurar a conta, coloque `MAPBIOMAS_EMAIL` e `MAPBIOMAS_SENHA` no `.env` (veja o `.env.example`).
+- Para baixar todos os alertas publicados desde 2019, execute `uv run elementar-desmatamento`.
+- Para ignorar o manifesto e baixar de novo, execute `uv run elementar-desmatamento --forcar`.
+
+A API entrega um relatório único com todos os alertas, de cerca de 190 MB, regerado pelo MapBiomas de tempos em tempos. O manifesto (`data/parquet/bruto/desmatamento_alertas/manifesto.json`) guarda o MD5 do relatório: se ele não mudou, nada é baixado. Os dados ficam em `data/parquet/bruto/desmatamento_alertas/ano=AAAA/`, por ano de detecção.
 
 ## API e site
 
