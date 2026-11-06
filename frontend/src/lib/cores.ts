@@ -51,3 +51,22 @@ export function gradienteDoPh(de = 0, ate = 14) {
   const passos = Array.from({ length: 7 }, (_, i) => corDoPh(de + ((ate - de) * i) / 6))
   return `linear-gradient(90deg, ${passos.join(', ')})`
 }
+
+// Poluentes do ar: o matiz vem da natureza de cada um, no mesmo sistema dos
+// parâmetros da água. Aparecem um de cada vez, nunca lado a lado no mesmo gráfico.
+const POLUENTES: Record<string, string> = {
+  // Brasa: o material fino vem sobretudo das queimadas.
+  pm25: tom(25),
+  // Ocre da poeira levantada do solo.
+  pm10: tom(80),
+  // O ozônio é um gás azulado.
+  o3: tom(240),
+  // O dióxido de nitrogênio é um gás castanho-avermelhado.
+  no2: tom(50),
+  // Amarelo do enxofre.
+  so2: tom(110),
+  // Incolor: o cinza-azulado da fumaça.
+  co: tom(280, 0.6),
+}
+
+export const corDoPoluente = (poluente: string) => POLUENTES[poluente] ?? 'var(--texto-2)'

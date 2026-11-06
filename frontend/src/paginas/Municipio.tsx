@@ -107,8 +107,8 @@ export function Municipio() {
 
       <Secao
         className="mt-12"
-        titulo="Por parâmetro"
-        descricao="Contagens e distribuição dos resultados como publicados no OpenDataSUS, sem comparação com limites da legislação."
+        titulo="Água e Ar"
+        descricao="Dados abertos do OpenDataSUS para qualidade da água e SISAM para qualidade do ar."
       >
         <RegistrosPorParametro key={m.codigo_ibge} municipio={m} />
       </Secao>

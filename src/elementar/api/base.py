@@ -7,6 +7,9 @@ continuam no Parquet e são lidas sob demanda, filtradas por ano.
 
 Só contagens, sem tratamento dos valores: ``resultado`` ainda não é
 interpretado. Dados novos do pipeline valem a partir do próximo reinício.
+
+A qualidade do ar (``elementar-sisam``) vem da camada bruta: na inicialização
+viram médias mensais e os extremos diários por município e poluente.
 """
 
 import logging
@@ -23,6 +26,10 @@ FAIXAS = 24  # barras do histograma de cada parâmetro numérico
 # Motivo nulo vira um valor próprio, para poder ser escolhido no filtro.
 MOTIVO = "coalesce(motivo_da_coleta, 'Não informado')"
 AREAS = 5  # áreas listadas por parâmetro no controle; o resto vira "outras"
+AR = "ar_sisam"
+POLUENTES = ("pm25", "pm10", "o3", "no2", "so2", "co")
+# O SISAM tem só Brasília; o SISAGUA divide o DF em Regiões Administrativas.
+BRASILIA = "530010"
 
 log = logging.getLogger(__name__)
 
@@ -45,6 +52,7 @@ class Base:
             )
         log.info("calculando agregados a partir de %s", servido)
         self._materializar()
+        self._materializar_ar(dados / "parquet" / "bruto" / AR)
 
     def _materializar(self) -> None:
         self.con.execute(
@@ -77,6 +85,57 @@ class Base:
         )
         ((total,),) = self.con.execute("SELECT count(*) FROM municipios").fetchall()
         log.info("agregados prontos: %d municípios", total)
+
+    def _materializar_ar(self, pasta: Path) -> None:
+        """Médias mensais e extremos diários. O código do SISAM tem 7 dígitos
+        (com o verificador) e vira o de 6, usado pelo SISAGUA e pela API."""
+        arquivos = str(pasta / "*" / "*" / "dados.parquet").replace("'", "''")
+        if not any(pasta.glob("*/*/dados.parquet")):
+            log.warning("%s: sem dados de qualidade do ar em %s", AR, pasta)
+            self.con.execute(
+                "CREATE TABLE ar_mensal (codigo_ibge VARCHAR, poluente VARCHAR, "
+                "unidade VARCHAR, mes VARCHAR, media DOUBLE, minimo DOUBLE, "
+                "maximo DOUBLE, dias INTEGER, origem VARCHAR);"
+                "CREATE TABLE ar_extremos (codigo_ibge VARCHAR, poluente VARCHAR, "
+                "maximo DOUBLE, data_maximo DATE, dias_maximo INTEGER, "
+                "minimo DOUBLE, data_minimo DATE, dias_minimo INTEGER)"
+            )
+            return
+        self.con.execute(
+            f"""
+            CREATE VIEW {AR} AS
+            SELECT (codigo_ibge // 10)::VARCHAR AS codigo_ibge, data, poluente,
+                   unidade, valor, origem
+            FROM read_parquet('{arquivos}', hive_partitioning = false);
+
+            CREATE TABLE ar_mensal AS
+            SELECT codigo_ibge, poluente, any_value(unidade) AS unidade,
+                   strftime(data, '%Y-%m') AS mes, avg(valor) AS media,
+                   min(valor) AS minimo, max(valor) AS maximo,
+                   count(*)::INTEGER AS dias, any_value(origem) AS origem
+            FROM {AR} GROUP BY codigo_ibge, poluente, mes;
+
+            CREATE TABLE ar_extremos AS
+            WITH e AS (
+                SELECT codigo_ibge, poluente, max(maximo) AS maximo,
+                       min(minimo) AS minimo
+                FROM ar_mensal GROUP BY ALL
+            )
+            SELECT codigo_ibge, poluente, any_value(e.maximo) AS maximo,
+                   max(data) FILTER (WHERE valor = e.maximo) AS data_maximo,
+                   count(*) FILTER (WHERE valor = e.maximo)::INTEGER AS dias_maximo,
+                   any_value(e.minimo) AS minimo,
+                   max(data) FILTER (WHERE valor = e.minimo) AS data_minimo,
+                   count(*) FILTER (WHERE valor = e.minimo)::INTEGER AS dias_minimo
+            FROM {AR} JOIN e USING (codigo_ibge, poluente)
+            WHERE valor = e.maximo OR valor = e.minimo
+            GROUP BY ALL;
+            """
+        )
+        ((meses,),) = self.con.execute(
+            "SELECT count(DISTINCT mes) FROM ar_mensal"
+        ).fetchall()
+        log.info("%s: qualidade do ar pronta (%d meses)", AR, meses)
 
     def _cursor(self) -> duckdb.DuckDBPyConnection:
         # Um cursor por chamada: a conexão é compartilhada entre threads.
@@ -162,6 +221,57 @@ class Base:
             {"por_ano": _por_ano(controle, "registros")} if controle else None
         )
         return resultado
+
+    def qualidade_do_ar(self, codigo: str) -> dict[str, Any]:
+        distrito_federal = codigo.startswith("53")
+        if distrito_federal:
+            codigo = BRASILIA
+        cursor = self._cursor()
+        cursor.execute(
+            "SELECT poluente, unidade, mes, media, minimo, maximo, dias, origem "
+            "FROM ar_mensal WHERE codigo_ibge = ? ORDER BY mes",
+            [codigo],
+        )
+        meses = _linhas(cursor)
+        cursor.execute(
+            "SELECT * EXCLUDE (codigo_ibge) FROM ar_extremos WHERE codigo_ibge = ?",
+            [codigo],
+        )
+        extremos = {e["poluente"]: e for e in _linhas(cursor)}
+
+        poluentes = []
+        for nome in POLUENTES:
+            e = extremos.get(nome)
+            if e is None:
+                continue
+            por_mes = [
+                {
+                    k: m[k]
+                    for k in ("mes", "media", "minimo", "maximo", "dias", "origem")
+                }
+                for m in meses
+                if m["poluente"] == nome
+            ]
+            poluentes.append(
+                {
+                    "poluente": nome,
+                    "unidade": next(
+                        m["unidade"] for m in meses if m["poluente"] == nome
+                    ),
+                    "maximo": {
+                        "valor": e["maximo"],
+                        "data": e["data_maximo"],
+                        "dias": e["dias_maximo"],
+                    },
+                    "minimo": {
+                        "valor": e["minimo"],
+                        "data": e["data_minimo"],
+                        "dias": e["dias_minimo"],
+                    },
+                    "por_mes": por_mes,
+                }
+            )
+        return {"distrito_federal": distrito_federal, "poluentes": poluentes}
 
     def municipios_com_totais(self, uf: str | None = None) -> list[dict[str, Any]]:
         """Todos os municípios (ou só os da UF) com o total de cada fonte."""

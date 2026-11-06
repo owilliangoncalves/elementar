@@ -111,3 +111,36 @@ class ParametroControle(BaseModel):
     pontos: dict[str, int]
     areas: list[Area]
     outras_areas: int
+
+
+class Extremo(BaseModel):
+    """O dia mais recente com o valor; ``dias`` conta os empates."""
+
+    valor: float
+    data: date
+    dias: int
+
+
+class MesAr(BaseModel):
+    mes: str  # AAAA-MM
+    media: float
+    minimo: float
+    maximo: float
+    dias: int
+    origem: str  # reanalise ou previsao
+
+
+class PoluenteAr(BaseModel):
+    poluente: str
+    unidade: str
+    maximo: Extremo
+    minimo: Extremo
+    por_mes: list[MesAr]
+
+
+class QualidadeDoAr(BaseModel):
+    """Estimativas diárias do SISAM. No DF, as Regiões Administrativas recebem o
+    valor do Distrito Federal inteiro (``distrito_federal``)."""
+
+    distrito_federal: bool
+    poluentes: list[PoluenteAr]
