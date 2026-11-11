@@ -8,10 +8,10 @@ import type { ChaveRegiao } from '../lib/lugares'
 
 // Os quatro elementos do projeto e de onde vêm os dados de cada um.
 const ELEMENTOS = [
-  { nome: 'Terra', fonte: 'Desmatamento · MapBiomas Alerta' },
-  { nome: 'Ar', fonte: 'Poluentes · SISAM/INPE' },
-  { nome: 'Água', fonte: 'Vigilância e controle · SISAGUA' },
-  { nome: 'Fogo', fonte: 'Focos de queimadas · INPE' },
+  { nome: 'Terra', fonte: 'MapBiomas Alerta' },
+  { nome: 'Ar', fonte: 'SISAM/INPE' },
+  { nome: 'Água', fonte: 'SISAGUA' },
+  { nome: 'Fogo', fonte: 'INPE' },
 ]
 
 export function Inicio() {
@@ -31,7 +31,7 @@ export function Inicio() {
       <Faixa interno="grid gap-12 py-12 md:py-16 lg:grid-cols-[5fr_7fr] lg:items-center">
         <div>
           <h1 className="manchete text-6xl sm:text-7xl xl:text-8xl">
-            <span className="mb-4 block text-3xl text-texto-2 sm:text-4xl">Entenda como elementos relacionados a</span>
+            <span className="mb-4 block text-3xl text-texto-2 sm:text-4xl">Entenda como</span>
             água, ar,
             <br />
             terra e fogo
@@ -41,8 +41,7 @@ export function Inicio() {
             <Recorte marca>sua vida.</Recorte>
           </h1>
           <p className="papel mt-8 max-w-md text-[15px] leading-relaxed">
-            Dados abertos sobre os elementos básicos da vida, reunidos cidade por cidade: o desmatamento, a qualidade
-            do ar, a água para consumo humano e os focos de queimadas.
+            Dados abertos sobre os 4 elementos básicos da vida, reunidos cidade por cidade.
           </p>
         </div>
 
@@ -79,7 +78,7 @@ export function Inicio() {
             <span className="text-sul">27 estados.</span>
           </>
         }
-        descricao="Escolha uma região para aproximar o mapa e ver os estados. Toque num estado para ver os dados dele."
+        descricao=""
       >
         <PainelRegioes regiao={regiao} onRegiao={setRegiao} />
       </Secao>
@@ -91,7 +90,7 @@ export function Inicio() {
           </>
         }
         classeDescricao="hidden md:block"
-        descricao="Todos os municípios com dados de qualidade da água. Filtre pela região, pelo estado, ou digite o nome."
+        descricao=""
       >
         <IndiceAZ regiao={regiao} onRegiao={setRegiao} />
       </Secao>

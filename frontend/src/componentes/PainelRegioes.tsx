@@ -39,7 +39,7 @@ export function PainelRegioes({
             value={filtro}
             onChange={(e) => setFiltro(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && encontrados[0] && abrir(encontrados[0])}
-            placeholder="Ir direto para um estado"
+            placeholder="Busque pelo seu Estado"
             aria-label="Buscar estado"
             className="maquina h-full flex-1 bg-transparent outline-none placeholder:text-texto-3"
           />
