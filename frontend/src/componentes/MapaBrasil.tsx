@@ -61,7 +61,7 @@ export function MapaBrasil({
 
   return (
     <div className="relative">
-      <div className="absolute top-0 left-0 z-10 rounded-full border border-linha bg-fundo/80 px-3 py-1.5 text-sm font-semibold backdrop-blur">
+      <div className="rotulo absolute top-0 left-0 z-10 bg-sul px-2.5 py-1 text-[#15171c]">
         {legenda}
       </div>
       <svg

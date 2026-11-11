@@ -4,7 +4,7 @@ import { clsx } from 'clsx'
 import { ArrowRight, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { type MunicipioDoIndice, consultas } from '../lib/api'
-import { fmt, fmtCompacto, inicial, semAcento, tituloNome } from '../lib/formato'
+import { chaveNome, fmt, inicial, semAcento, tituloNome } from '../lib/formato'
 import { type ChaveRegiao, REGIOES, nomeUf, regiaoDaUf } from '../lib/lugares'
 import { Carregando, Falha, Pilula, Seletor } from './ui'
 
@@ -18,7 +18,7 @@ interface Item extends MunicipioDoIndice {
   letra: string
 }
 
-function Cartao({ m }: { m: Item }) {
+function Cartao({ m, contorno }: { m: Item; contorno?: string }) {
   const regiao = regiaoDaUf(m.uf)
   return (
     <Link
@@ -26,26 +26,35 @@ function Cartao({ m }: { m: Item }) {
       params={{ codigo: m.codigo_ibge }}
       className="group flex flex-col items-center text-center"
     >
-      <span
-        className="relative grid size-20 place-items-center rounded-full border-2 transition group-hover:scale-105"
-        style={{
-          borderColor: regiao.cor,
-          backgroundImage: `radial-gradient(${regiao.cor} 1.3px, transparent 1.6px)`,
-          backgroundSize: '6px 6px',
-        }}
-      >
-        <span className="rounded-md bg-fundo px-1.5 py-0.5 font-mono text-sm font-bold">{m.uf}</span>
+      <span className="relative grid size-20 place-items-center transition group-hover:scale-105">
+        {contorno ? (
+          <svg viewBox="0 0 100 100" aria-hidden className="size-full overflow-visible">
+            <path
+              d={contorno}
+              style={{
+                fill: `color-mix(in srgb, ${regiao.cor} 22%, transparent)`,
+                stroke: regiao.cor,
+                strokeWidth: 2,
+                strokeLinejoin: 'round',
+                vectorEffect: 'non-scaling-stroke',
+              }}
+            />
+          </svg>
+        ) : (
+          <span className="size-16 border-2 border-dashed" style={{ borderColor: regiao.cor }} />
+        )}
+        <span className="fita absolute -bottom-1 left-1/2 -translate-x-1/2">{m.uf}</span>
       </span>
-      <span className="mt-2 text-sm leading-tight font-bold group-hover:underline">{m.nome}</span>
+      <span className="mt-3 text-sm leading-tight font-bold group-hover:underline">{m.nome}</span>
       <span className="mt-0.5 text-xs text-texto-3">
         {nomeUf(m.uf)}
-      </span>
-      <span className="mt-0.5 text-[11px] font-bold tracking-wide text-texto-2 uppercase">
-        {m.vigilancia_analises == null ? 'sem análises' : `${fmtCompacto(m.vigilancia_analises)} análises`}
       </span>
     </Link>
   )
 }
+
+// No DF o SISAGUA usa as Regiões Administrativas, que só casam pelo nome.
+const chaveContorno = (m: Item) => (m.uf === 'DF' ? `DF:${chaveNome(m.municipio)}` : m.codigo_ibge)
 
 export function IndiceAZ({
   regiao,
@@ -55,6 +64,7 @@ export function IndiceAZ({
   onRegiao: (regiao: ChaveRegiao | null) => void
 }) {
   const { data, error, isPending } = useQuery(consultas.indice())
+  const { data: contornos } = useQuery(consultas.contornos())
   const [texto, setTexto] = useState('')
   const [uf, setUf] = useState('')
   const [letra, setLetra] = useState<string | null>(null)
@@ -96,7 +106,7 @@ export function IndiceAZ({
 
   return (
     <div>
-      <label className="flex h-12 items-center gap-3 rounded-full border border-linha bg-superficie px-5 focus-within:border-texto-3">
+      <label className="flex h-12 items-center gap-3 border-2 border-texto px-5">
         <Search className="size-4 text-texto-3" />
         <input
           type="search"
@@ -127,7 +137,7 @@ export function IndiceAZ({
           opcoes={[{ valor: '', rotulo: 'Estado: todos' }, ...ufsDaRegiao.map((u) => ({ valor: u, rotulo: nomeUf(u) }))]}
         />
         <div className="text-texto-2">
-          <span className="font-display text-3xl font-medium text-texto">{fmt(filtrados.length)}</span> municípios, de
+          <span className="font-display text-4xl text-texto">{fmt(filtrados.length)}</span> municípios, de
           A a Z
         </div>
       </div>
@@ -142,9 +152,9 @@ export function IndiceAZ({
               disabled={vazia}
               onClick={() => setLetra(l)}
               className={clsx(
-                'grid h-9 min-w-9 place-items-center rounded-full px-2 font-display text-base font-medium whitespace-nowrap transition md:h-10 md:min-w-10 md:text-lg',
+                'grid h-9 min-w-9 place-items-center px-2 font-display text-base font-medium whitespace-nowrap transition md:h-10 md:min-w-10 md:text-lg',
                 l == null && 'px-3',
-                letra === l ? 'bg-texto text-fundo' : 'text-texto-2 hover:text-texto',
+                letra === l ? 'bg-sul text-[#15171c]' : 'text-texto-2 hover:text-texto',
                 vazia && 'opacity-25',
               )}
             >
@@ -166,11 +176,11 @@ export function IndiceAZ({
             const grupo = porLetra.get(l)!
             const mostrados = tudo ? grupo : grupo.slice(0, POR_LETRA)
             return (
-              <div key={l} className="flex flex-col gap-4 border-t border-linha py-6 md:flex-row md:gap-6">
-                <div className="shrink-0 font-display text-6xl leading-[0.85] font-bold md:w-24 md:text-8xl">{l}</div>
+              <div key={l} className="flex flex-col gap-4 border-t-2 border-texto py-6 md:flex-row md:gap-6">
+                <div className="manchete shrink-0 text-7xl md:w-28 md:text-9xl">{l}</div>
                 <div className="grid flex-1 grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-x-3 gap-y-6">
                   {mostrados.map((m) => (
-                    <Cartao key={m.codigo_ibge} m={m} />
+                    <Cartao key={m.codigo_ibge} m={m} contorno={contornos?.[chaveContorno(m)]} />
                   ))}
                   {grupo.length > mostrados.length && (
                     <button
@@ -178,7 +188,7 @@ export function IndiceAZ({
                       onClick={() => setLetra(l)}
                       className="group flex flex-col items-center text-center"
                     >
-                      <span className="grid size-20 place-items-center rounded-full border-2 border-dashed border-linha transition group-hover:border-texto-3">
+                      <span className="grid size-20 place-items-center border-2 border-dashed border-linha transition group-hover:border-texto-3">
                         <ArrowRight className="size-6" />
                       </span>
                       <span className="mt-2 text-sm font-bold">Ver todos</span>
