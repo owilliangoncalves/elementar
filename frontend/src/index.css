@@ -4,7 +4,9 @@
 
 @theme {
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Oswald', ui-sans-serif, system-ui, sans-serif;
+  /* Manchetes ultracondensadas e papel datilografado. */
+  --font-display: 'Anton', 'Impact', ui-sans-serif, sans-serif;
+  --font-maquina: 'Special Elite', 'Courier New', ui-monospace, monospace;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
 
   /* Regiões do IBGE: identificam o lugar, não indicam qualidade. */
@@ -49,7 +51,8 @@
 }
 
 [data-theme='dark'] {
-  --fundo: #14161b;
+  /* O mesmo preto da barra de navegação: no escuro a página é toda tinta. */
+  --fundo: #08090b;
   --superficie: #1b1e24;
   --superficie-2: #23272f;
   --linha: #2c3039;
@@ -87,8 +90,185 @@
   body {
     @apply bg-fundo text-texto font-sans antialiased;
     font-feature-settings: 'tnum' 1;
+    /* Anton só tem um peso: nada de negrito sintético nas manchetes. */
+    font-synthesis: none;
+    /* Grão de papel: ruído fixo por cima do fundo, sem mudar a cor. */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
   }
   ::selection {
     @apply bg-sul/30;
+  }
+}
+
+/* ------------------------------------------------------------------
+   Dossiê: faixas de ponta a ponta (papel, tinta, marca), manchetes
+   ultracondensadas, recortes colados, molduras de filme e anotações.
+   ------------------------------------------------------------------ */
+
+@theme {
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+}
+
+:root {
+  /* A tinta é escura nos dois temas, como o recorte preto da colagem. */
+  --tinta: #15171c;
+  --sobre-tinta: #f6f6f3;
+  --grao: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .11 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  --dente: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='14' preserveAspectRatio='none'%3E%3Cpath d='M0 14V7l9-4 7 5 11-6 8 7 13-5 6 4 12-6 9 5 10-3 8 6 12-7 7 5 13-4 9 6 10-5 16 3v11z'/%3E%3C/svg%3E");
+}
+
+[data-theme='dark'] {
+  --tinta: #08090b;
+  --sobre-tinta: #f1f2f4;
+}
+
+/* No escuro o fundo leva o mesmo grão das faixas de tinta. */
+[data-theme='dark'] body {
+  background-image: var(--grao);
+}
+
+/* Com o fundo já em tinta, recorte, fita e bilhete se invertem para continuar
+   aparecendo: papel claro com letra de tinta. */
+[data-theme='dark'] :is(.recorte, .fita, .papel) {
+  background: var(--grao), var(--sobre-tinta);
+  color: var(--tinta);
+}
+
+@theme inline {
+  --color-tinta: var(--tinta);
+  --color-sobre-tinta: var(--sobre-tinta);
+}
+
+/* Faixas: a página é uma pilha delas, sempre de ponta a ponta. */
+@utility faixa-tinta {
+  background: var(--grao), var(--tinta);
+  color: var(--sobre-tinta);
+  --texto: var(--sobre-tinta);
+  --texto-2: color-mix(in oklab, var(--sobre-tinta) 72%, transparent);
+  --texto-3: color-mix(in oklab, var(--sobre-tinta) 50%, transparent);
+  --linha: color-mix(in oklab, var(--sobre-tinta) 18%, transparent);
+  --superficie: color-mix(in oklab, var(--sobre-tinta) 6%, var(--tinta));
+  --superficie-2: color-mix(in oklab, var(--sobre-tinta) 12%, var(--tinta));
+  --fundo: var(--tinta);
+}
+
+/* Faixa na cor da marca, com tinta escura por cima nos dois temas. */
+@utility faixa-marca {
+  background: var(--grao), var(--color-sul);
+  color: #15171c;
+  --texto: #15171c;
+  --texto-2: #15171cc0;
+  --texto-3: #15171c99;
+  --linha: #15171c40;
+}
+
+/* Borda de papel rasgado no topo e/ou na base. */
+@utility rasgado {
+  mask:
+    var(--dente) top left / 160px 14px repeat-x,
+    linear-gradient(#000 0 0) 0 13px / 100% calc(100% - 13px) no-repeat;
+}
+@utility rasgado-base {
+  mask:
+    var(--dente) bottom left / 160px 14px repeat-x,
+    linear-gradient(#000 0 0) 0 0 / 100% calc(100% - 13px) no-repeat;
+  mask-image: var(--dente), linear-gradient(#000 0 0);
+  mask-position: bottom left, 0 0;
+  transform-origin: center;
+}
+
+/* Manchete: Anton gigante, entrelinha apertada. */
+@utility manchete {
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-transform: uppercase;
+  line-height: 0.9;
+  letter-spacing: -0.005em;
+}
+
+/* Recortes colados dentro da manchete: um em tinta, outro na cor da marca. */
+@utility recorte {
+  display: inline-block;
+  background: var(--grao), var(--tinta);
+  color: var(--sobre-tinta);
+  padding: 0.12em 0.14em 0;
+  rotate: -1.2deg;
+  clip-path: polygon(0 4%, 3% 0, 40% 3%, 72% 0, 100% 2%, 99% 60%, 100% 97%, 64% 100%, 30% 96%, 1% 100%, 0 55%);
+}
+@utility recorte-marca {
+  display: inline-block;
+  background: var(--grao), var(--color-sul);
+  color: #15171c;
+  padding: 0.12em 0.14em 0;
+  rotate: 0.8deg;
+  clip-path: polygon(1% 2%, 28% 0, 66% 3%, 100% 0, 98% 48%, 100% 100%, 70% 97%, 35% 100%, 0 98%, 2% 50%);
+}
+
+/* Pedaço de papel datilografado, colado torto, sempre na cor oposta à da
+   página para se destacar: tinta no claro, papel claro no escuro. */
+@utility papel {
+  background: var(--grao), var(--tinta);
+  color: var(--sobre-tinta);
+  font-family: var(--font-maquina);
+  padding: 1rem 1.25rem 1.1rem;
+  rotate: -1deg;
+  clip-path: polygon(0 3%, 6% 0, 22% 2%, 41% 0, 63% 3%, 82% 0, 100% 2%, 99% 30%, 100% 66%, 98% 100%, 77% 97%, 52% 100%, 30% 97%, 10% 100%, 1% 97%, 2% 64%, 0 33%);
+}
+
+@utility maquina {
+  font-family: var(--font-maquina);
+}
+
+/* Mapa sobre o fundo da página, com espaço à esquerda para a legenda do IBGE. */
+@utility filme {
+  position: relative;
+  padding-left: 2.25rem;
+}
+
+@utility legenda-filme {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--texto-2);
+}
+
+/* Ficha: o cartão de papel com contorno de tinta e o número no canto. */
+@utility ficha {
+  /* Sem fundo próprio: o cartão é só o contorno sobre o papel da faixa. */
+  position: relative;
+  background: transparent;
+  border: 1px solid color-mix(in oklab, var(--texto) 22%, transparent);
+}
+
+@utility fita {
+  display: inline-block;
+  background: var(--tinta);
+  color: var(--sobre-tinta);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1.5;
+  padding: 0.15rem 0.55rem;
+  text-transform: uppercase;
+}
+
+@utility rotulo {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Colunas separadas por fios verticais, como nas faixas de serviços. */
+@utility colunas-fio {
+  & > * + * {
+    border-left: 1px solid var(--linha);
   }
 }

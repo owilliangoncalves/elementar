@@ -48,7 +48,7 @@ export function Busca({ aberta, onMudar }: { aberta: boolean; onMudar: (aberta: 
       shouldFilter={false}
       label="Buscar município"
       overlayClassName="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-      contentClassName="fixed inset-x-4 top-[12vh] z-50 mx-auto max-w-xl overflow-hidden rounded-2xl border border-linha bg-superficie shadow-2xl"
+      contentClassName="fixed inset-x-4 top-[12vh] z-50 mx-auto max-w-xl overflow-hidden border-2 border-texto bg-fundo shadow-[6px_6px_0_var(--color-sul)]"
     >
       <div className="flex items-center gap-3 border-b border-linha px-4">
         <Search className="size-4 text-texto-3" />
@@ -58,7 +58,7 @@ export function Busca({ aberta, onMudar }: { aberta: boolean; onMudar: (aberta: 
           placeholder="Digite o nome do município"
           className="h-14 flex-1 bg-transparent text-base outline-none placeholder:text-texto-3"
         />
-        <kbd className="rounded border border-linha px-1.5 font-mono text-xs text-texto-3">esc</kbd>
+        <kbd className="rotulo border border-linha px-1.5 text-texto-3">esc</kbd>
       </div>
       <Command.List className="max-h-[50vh] overflow-y-auto p-2">
         {termo.length < 2 ? (
@@ -80,7 +80,7 @@ export function Busca({ aberta, onMudar }: { aberta: boolean; onMudar: (aberta: 
                 key={m.codigo_ibge}
                 value={m.codigo_ibge}
                 onSelect={ir}
-                className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-3 py-2.5 data-[selected=true]:bg-superficie-2"
+                className="flex cursor-pointer items-center justify-between gap-3 border-b border-dashed border-linha px-3 py-2.5 last:border-b-0 data-[selected=true]:bg-superficie-2"
               >
                 <span className="font-semibold">{tituloNome(m.municipio)}</span>
                 <span className="flex items-center gap-2 text-sm text-texto-3">

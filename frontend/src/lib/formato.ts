@@ -15,6 +15,14 @@ export function fmtData(iso: string | null | undefined) {
 export const semAcento = (texto: string) =>
   texto.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
 
+// Chave pelo nome, para as RAs do DF, que não têm código do IBGE: "SOL NASCENTE
+// E POR DO SOL" e "SOL NASCENTE/POR DO SOL" viram a mesma chave.
+export const chaveNome = (nome: string) =>
+  semAcento(nome)
+    .split(/[^a-z0-9]+/)
+    .filter((p) => p && p !== 'e')
+    .join(' ')
+
 const MINUSCULAS = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'd'])
 
 // Os nomes vêm em maiúsculas no SISAGUA: "SAO JOAO D'ALIANCA" vira "Sao Joao d'Alianca".

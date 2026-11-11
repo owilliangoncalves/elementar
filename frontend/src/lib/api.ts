@@ -265,4 +265,13 @@ export const consultas = {
       },
       ...PARA_SEMPRE,
     }),
+  // Contorno de cada município (e das RAs do DF, pela chave do nome), num
+  // quadrado de 100 × 100. Gerado por scripts/contornos.mjs; só é baixado
+  // quando o índice de A a Z aparece.
+  contornos: () =>
+    queryOptions({
+      queryKey: ['contornos'],
+      queryFn: async () => (await import('../dados/contornos.json')).default as Record<string, string>,
+      ...PARA_SEMPRE,
+    }),
 }
