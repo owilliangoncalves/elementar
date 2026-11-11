@@ -1,10 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { consultas } from '../lib/api'
 import { fmt, semAcento } from '../lib/formato'
 import { type ChaveRegiao, NOMES_UF, REGIOES, nomeUf, regiaoDaUf } from '../lib/lugares'
+import { SetaCanto, cn } from './ui'
 
+// As cinco regiões lado a lado, separadas por fios; a escolhida abre os estados.
 export function PainelRegioes({
   regiao,
   onRegiao,
@@ -24,90 +27,101 @@ export function PainelRegioes({
   }, [filtro])
 
   const abrir = (uf: string) => void navegar({ to: '/uf/$uf', params: { uf } })
-  const visiveis = regiao ? REGIOES.filter((r) => r.chave === regiao) : REGIOES
+  const escolhida = REGIOES.find((r) => r.chave === regiao)
 
   return (
-    <aside className="flex flex-col">
-      <input
-        type="search"
-        value={filtro}
-        onChange={(e) => setFiltro(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && encontrados[0] && abrir(encontrados[0])}
-        placeholder="Estado"
-        aria-label="Buscar estado"
-        className="h-10 rounded-full border border-linha bg-superficie px-4 text-sm outline-none placeholder:text-texto-3 focus:border-texto-3"
-      />
-      <div className="mt-3 border-t-2 border-texto" />
+    <div>
+      <div className="relative mb-10 max-w-md">
+        <label className="flex h-12 items-center gap-3 border-2 border-texto px-4 focus-within:border-sul">
+          <Search className="size-4 text-texto-2" />
+          <input
+            type="search"
+            value={filtro}
+            onChange={(e) => setFiltro(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && encontrados[0] && abrir(encontrados[0])}
+            placeholder="Ir direto para um estado"
+            aria-label="Buscar estado"
+            className="maquina h-full flex-1 bg-transparent outline-none placeholder:text-texto-3"
+          />
+        </label>
+        {filtro.trim() && (
+          <ul className="absolute inset-x-0 top-full z-20 border-2 border-t-0 border-texto bg-fundo">
+            {encontrados.map((uf) => (
+              <li key={uf}>
+                <button
+                  type="button"
+                  onClick={() => abrir(uf)}
+                  className="flex w-full items-center gap-3 border-b border-linha px-4 py-3 text-left last:border-b-0 hover:bg-superficie-2"
+                >
+                  <span className="w-8 font-mono text-sm font-bold" style={{ color: regiaoDaUf(uf).cor }}>
+                    {uf}
+                  </span>
+                  <span className="font-semibold">{nomeUf(uf)}</span>
+                </button>
+              </li>
+            ))}
+            {encontrados.length === 0 && <li className="maquina px-4 py-3 text-texto-3">Nenhum estado.</li>}
+          </ul>
+        )}
+      </div>
 
-      {encontrados.length > 0 || filtro.trim() ? (
-        <ul className="mt-2">
-          {encontrados.map((uf) => (
+      <ul className="grid grid-cols-2 gap-y-8 sm:grid-cols-3 lg:grid-cols-5 lg:colunas-fio">
+        {REGIOES.map((r) => {
+          const ativa = regiao === r.chave
+          return (
+            <li key={r.chave} className="lg:px-6 lg:first:pl-0">
+              <button
+                type="button"
+                aria-pressed={ativa}
+                onClick={() => onRegiao(ativa ? null : r.chave)}
+                className={cn(
+                  'group block w-full border-t-4 pt-4 text-left transition',
+                  regiao && !ativa && 'opacity-40 hover:opacity-100',
+                )}
+                style={{ borderColor: r.cor }}
+              >
+                <span className="block font-display text-7xl leading-none md:text-8xl" style={{ color: r.cor }}>
+                  {r.ufs.length}
+                </span>
+                <span className="manchete mt-3 block text-3xl group-hover:underline">{r.nome}</span>
+                <span className="mt-2 block font-mono text-xs leading-relaxed text-texto-2">{r.ufs.join(' · ')}</span>
+                {estados && (
+                  <span className="maquina mt-1 block text-sm text-texto-3">
+                    {fmt(r.ufs.reduce((t, uf) => t + (municipiosPorUf.get(uf) ?? 0), 0))} municípios com dados
+                  </span>
+                )}
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+
+      {escolhida && (
+        <ul className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {escolhida.ufs.map((uf) => (
             <li key={uf}>
               <button
                 type="button"
                 onClick={() => abrir(uf)}
-                className="flex w-full items-center gap-3 border-b border-linha py-3 text-left hover:text-texto-2"
+                className="group flex w-full items-end justify-between gap-3 border-2 border-linha p-4 text-left transition hover:border-texto"
               >
-                <span className="w-8 font-mono text-sm font-bold" style={{ color: regiaoDaUf(uf).cor }}>
-                  {uf}
+                <span>
+                  <span className="block font-display text-4xl leading-none" style={{ color: escolhida.cor }}>
+                    {uf}
+                  </span>
+                  <span className="mt-2 block text-sm font-semibold">{nomeUf(uf)}</span>
+                  <span className="maquina block text-xs text-texto-3">{fmt(municipiosPorUf.get(uf))} municípios</span>
                 </span>
-                <span className="font-semibold">{nomeUf(uf)}</span>
+                <SetaCanto className="opacity-0 transition group-hover:opacity-100" />
               </button>
             </li>
           ))}
-          {encontrados.length === 0 && <li className="py-3 text-sm text-texto-3">Nenhum estado.</li>}
         </ul>
-      ) : (
-        <>
-          <h3 className="mt-5 mb-1 font-bold">{regiao ? 'Estados da região' : 'Escolha uma região'}</h3>
-          <ul>
-            {visiveis.map((r) => (
-              <li key={r.chave} className="border-b border-linha last:border-b-0">
-                <button
-                  type="button"
-                  onClick={() => onRegiao(regiao === r.chave ? null : r.chave)}
-                  className="group flex w-full items-start gap-4 py-3 text-left"
-                >
-                  <span className="w-12 text-center font-display text-5xl leading-none font-medium" style={{ color: r.cor }}>
-                    {r.ufs.length}
-                  </span>
-                  <span>
-                    <span className="block text-lg font-bold group-hover:underline">{r.nome}</span>
-                    <span className="block font-mono text-xs leading-relaxed text-texto-2">{r.ufs.join(' · ')}</span>
-                    {estados && (
-                      <span className="block text-xs text-texto-3">
-                        {fmt(r.ufs.reduce((t, uf) => t + (municipiosPorUf.get(uf) ?? 0), 0))} municípios com dados
-                      </span>
-                    )}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          {regiao && (
-            <ul className="mt-2 grid grid-cols-2 gap-2">
-              {visiveis[0].ufs.map((uf) => (
-                <li key={uf}>
-                  <button
-                    type="button"
-                    onClick={() => abrir(uf)}
-                    className="w-full rounded-xl border border-linha p-3 text-left transition hover:border-texto-3"
-                  >
-                    <span className="block font-mono text-sm font-bold" style={{ color: visiveis[0].cor }}>
-                      {uf}
-                    </span>
-                    <span className="block text-sm font-semibold">{nomeUf(uf)}</span>
-                    <span className="block text-xs text-texto-3">{fmt(municipiosPorUf.get(uf))} municípios</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="mt-4 text-sm text-texto-2">
-            A cor só mostra a região do IBGE. Não tem relação com a qualidade da água.
-          </p>
-        </>
       )}
-    </aside>
+
+      <p className="maquina mt-10 text-sm text-texto-3">
+        A cor só mostra a região do IBGE. Não tem relação com os dados.
+      </p>
+    </div>
   )
 }

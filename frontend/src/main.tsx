@@ -1,7 +1,7 @@
 import '@fontsource-variable/inter'
 import '@fontsource-variable/jetbrains-mono'
-import '@fontsource/oswald/500.css'
-import '@fontsource/oswald/700.css'
+import '@fontsource/anton'
+import '@fontsource/special-elite'
 import './index.css'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'

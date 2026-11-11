@@ -3,50 +3,95 @@ import { useEffect, useState } from 'react'
 import { IndiceAZ } from '../componentes/IndiceAZ'
 import { MapaBrasil } from '../componentes/MapaBrasil'
 import { PainelRegioes } from '../componentes/PainelRegioes'
-import { Secao } from '../componentes/ui'
-import { type ChaveRegiao, REGIOES } from '../lib/lugares'
+import { Estatisticas, Faixa, Recorte, Secao } from '../componentes/ui'
+import type { ChaveRegiao } from '../lib/lugares'
+
+// Os quatro elementos do projeto e de onde vêm os dados de cada um.
+const ELEMENTOS = [
+  { nome: 'Terra', fonte: 'Desmatamento · MapBiomas Alerta' },
+  { nome: 'Ar', fonte: 'Poluentes · SISAM/INPE' },
+  { nome: 'Água', fonte: 'Vigilância e controle · SISAGUA' },
+  { nome: 'Fogo', fonte: 'Focos de queimadas · INPE' },
+]
 
 export function Inicio() {
   const [regiao, setRegiao] = useState<ChaveRegiao | null>(null)
   const navegar = useNavigate()
 
   useEffect(() => {
-    document.title = 'Elementar · Qualidade da água'
+    document.title = 'Elementar · Terra, ar, água e fogo'
     const tecla = (e: KeyboardEvent) => e.key === 'Escape' && setRegiao(null)
     window.addEventListener('keydown', tecla)
     return () => window.removeEventListener('keydown', tecla)
   }, [])
 
-  const nomeRegiao = REGIOES.find((r) => r.chave === regiao)?.nome
 
   return (
     <>
-      <div className="grid gap-8 py-8 lg:grid-cols-[1fr_260px]">
+      <Faixa interno="grid gap-12 py-12 md:py-16 lg:grid-cols-[5fr_7fr] lg:items-center">
         <div>
-          <nav className="mb-4 flex items-center gap-2 text-sm font-bold">
-            <button type="button" onClick={() => setRegiao(null)} className={regiao ? 'text-texto-2 hover:text-texto' : ''}>
-              Brasil
-            </button>
-            {nomeRegiao && (
-              <>
-                <span className="text-texto-3">/</span>
-                {nomeRegiao}
-              </>
-            )}
-          </nav>
+          <h1 className="manchete text-6xl sm:text-7xl xl:text-8xl">
+            <span className="mb-4 block text-3xl text-texto-2 sm:text-4xl">Entenda como elementos relacionados a</span>
+            água, ar,
+            <br />
+            terra e fogo
+            <br />
+            <Recorte>impactam</Recorte>
+            <br />
+            <Recorte marca>sua vida.</Recorte>
+          </h1>
+          <p className="papel mt-8 max-w-md text-[15px] leading-relaxed">
+            Dados abertos sobre os elementos básicos da vida, reunidos cidade por cidade: o desmatamento, a qualidade
+            do ar, a água para consumo humano e os focos de queimadas.
+          </p>
+        </div>
+
+        <figure className="filme">
+          <span className="legenda-filme absolute top-0 left-0 rotate-180 whitespace-nowrap opacity-70 [writing-mode:vertical-rl]">
+            IBGE · malha das UFs · 2022
+          </span>
           <MapaBrasil
             regiao={regiao}
             onRegiao={setRegiao}
             onUf={(uf) => void navegar({ to: '/uf/$uf', params: { uf } })}
           />
-        </div>
-        <PainelRegioes regiao={regiao} onRegiao={setRegiao} />
-      </div>
+          {regiao && (
+            <button type="button" onClick={() => setRegiao(null)} className="legenda-filme mt-3 opacity-70 hover:opacity-100">
+              ← Voltar ao Brasil
+            </button>
+          )}
+        </figure>
+      </Faixa>
+
+      <Faixa tom="marca" interno="py-12 md:py-14">
+        <Estatisticas
+          itens={ELEMENTOS.map((e) => ({ valor: <span className="uppercase">{e.nome}</span>, rotulo: e.fonte }))}
+        />
+      </Faixa>
 
       <Secao
-        titulo="Municípios de A a Z"
+        tom="tinta"
+        rasgada
+        titulo={
+          <>
+            Cinco regiões,
+            <br />
+            <span className="text-sul">27 estados.</span>
+          </>
+        }
+        descricao="Escolha uma região para aproximar o mapa e ver os estados. Toque num estado para ver os dados dele."
+      >
+        <PainelRegioes regiao={regiao} onRegiao={setRegiao} />
+      </Secao>
+
+      <Secao
+        titulo={
+          <>
+            Municípios <Recorte marca>de A a Z.</Recorte>
+          </>
+        }
         classeDescricao="hidden md:block"
-        descricao="Todos os municípios com dados de qualidade da água. Toque no mapa para filtrar pela região, ou digite o nome."
+        descricao="Todos os municípios com dados de qualidade da água. Filtre pela região, pelo estado, ou digite o nome."
       >
         <IndiceAZ regiao={regiao} onRegiao={setRegiao} />
       </Secao>
