@@ -19,7 +19,7 @@ export function Inicio() {
   const navegar = useNavigate()
 
   useEffect(() => {
-    document.title = 'Elementar · Terra, ar, água e fogo'
+    document.title = 'Elementar'
     const tecla = (e: KeyboardEvent) => e.key === 'Escape' && setRegiao(null)
     window.addEventListener('keydown', tecla)
     return () => window.removeEventListener('keydown', tecla)
@@ -32,16 +32,16 @@ export function Inicio() {
         <div>
           <h1 className="manchete text-6xl sm:text-7xl xl:text-8xl">
             <span className="mb-4 block text-3xl text-texto-2 sm:text-4xl">Entenda como</span>
-            água, ar,
+            elementos
             <br />
-            terra e fogo
+            da natureza
             <br />
             <Recorte>impactam</Recorte>
             <br />
             <Recorte marca>sua vida.</Recorte>
           </h1>
           <p className="papel mt-8 max-w-md text-[15px] leading-relaxed">
-            Dados abertos sobre os 4 elementos básicos da vida, reunidos cidade por cidade.
+            Dados públicos reunidos cidade a cidade.
           </p>
         </div>
 
