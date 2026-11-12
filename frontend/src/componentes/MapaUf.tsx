@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { feature } from 'topojson-client'
 import type { GeometryCollection } from 'topojson-specification'
 import { type MunicipioComTotais, consultas } from '../lib/api'
-import { fmt, semAcento, tituloNome } from '../lib/formato'
+import { chaveNome, fmt, tituloNome } from '../lib/formato'
 import { nomeUf } from '../lib/lugares'
 import { Aviso, BotaoRedondo, Carregando } from './ui'
 
@@ -40,13 +40,6 @@ interface Rotulo {
   x: number
   y: number
 }
-
-// "SOL NASCENTE E POR DO SOL" e "SOL NASCENTE/POR DO SOL" viram a mesma chave.
-const chaveNome = (nome: string) =>
-  semAcento(nome)
-    .split(/[^a-z0-9]+/)
-    .filter((p) => p && p !== 'e')
-    .join(' ')
 
 // Ponto mais "interno" do polígono (polylabel), já projetado: fica dentro mesmo
 // em formas côncavas, onde o centroide cairia fora.
@@ -172,21 +165,21 @@ export function MapaUf({
 
   return (
     <div>
-      <div className="relative overflow-hidden rounded-2xl border border-linha bg-superficie">
-        <div className="absolute top-3 left-3 z-10 rounded-full border border-linha bg-fundo/85 px-3 py-1.5 text-sm font-semibold backdrop-blur">
+      <div className="relative overflow-hidden">
+        <div className="rotulo absolute top-0 left-0 z-10 bg-sul px-2.5 py-1 text-[#15171c]">
           {destaque
             ? `${tituloNome(destaque.municipio)} · ${destaque[metrica] == null ? 'sem dados' : fmt(destaque[metrica])}`
             : `${nomeUf(uf)}: toque numa cidade`}
         </div>
-        <div className="absolute top-3 right-3 z-10 flex flex-col gap-2">
-          <BotaoRedondo className="bg-fundo/85 backdrop-blur" onClick={() => aplicar('mais')} aria-label="Aproximar">
+        <div className="absolute top-0 right-0 z-10 flex flex-col gap-2">
+          <BotaoRedondo className="bg-fundo" onClick={() => aplicar('mais')} aria-label="Aproximar">
             <Plus className="size-4" />
           </BotaoRedondo>
-          <BotaoRedondo className="bg-fundo/85 backdrop-blur" onClick={() => aplicar('menos')} aria-label="Afastar">
+          <BotaoRedondo className="bg-fundo" onClick={() => aplicar('menos')} aria-label="Afastar">
             <Minus className="size-4" />
           </BotaoRedondo>
           {transformacao.k > 1 && (
-            <BotaoRedondo className="bg-fundo/85 backdrop-blur" onClick={() => aplicar('inicio')} aria-label="Ver a UF inteira">
+            <BotaoRedondo className="bg-fundo" onClick={() => aplicar('inicio')} aria-label="Ver a UF inteira">
               <Maximize className="size-4" />
             </BotaoRedondo>
           )}
@@ -243,14 +236,14 @@ export function MapaUf({
           </g>
         </svg>
       </div>
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-xs text-texto-3">
+      <div className="legenda-filme mt-4 flex flex-wrap items-center gap-3 text-texto-3">
         <span>menos</span>
         <span
-          className="h-2 w-40 rounded-full"
+          className="h-2 w-40"
           style={{ background: `linear-gradient(to right, color-mix(in srgb, ${cor} 12%, var(--fundo)), ${cor})` }}
         />
         <span>mais</span>
-        <span className="ml-3 inline-block size-2.5 rounded-sm bg-superficie-2" />
+        <span className="ml-3 inline-block size-2.5 bg-superficie-2" />
         <span>sem dados</span>
         <span className="ml-3">Arraste para mover · ⌘/Ctrl + rolagem para zoom</span>
       </div>

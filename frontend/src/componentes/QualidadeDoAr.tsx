@@ -98,7 +98,7 @@ export function QualidadeDoAr({
 
   return (
     <div>
-      <p className="mb-4 text-sm text-texto-2">
+      <p className="maquina mb-6 text-sm text-texto-2">
         Estimativas diárias do SISAM (INPE), calculadas por modelo atmosférico e não medidas em estações.
         {data.distrito_federal && ' O SISAM não separa as Regiões Administrativas: os valores são do Distrito Federal inteiro.'}
       </p>
@@ -115,11 +115,11 @@ function Poluente({ poluente: p }: { poluente: PoluenteAr }) {
   const nome = NOMES[p.poluente]
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
-      <div className="min-w-0 rounded-2xl border border-linha bg-superficie p-5">
-        <h3 className="flex flex-wrap items-baseline gap-x-2 text-lg font-bold">
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="min-w-0 ficha p-5">
+        <h3 className="manchete flex flex-wrap items-baseline gap-x-2 text-3xl">
           {nome?.longo ?? p.poluente}
-          <span className="text-sm font-semibold text-texto-3">{nome?.curto}, média mensal em {p.unidade}</span>
+          <span className="rotulo text-texto-3">{nome?.curto}, média mensal em {p.unidade}</span>
         </h3>
         <Grafico pontos={pontos} poluente={p} cor={cor} fmt={fmt} />
         <Legenda cor={cor} temPrevisao={temPrevisao} />
@@ -127,7 +127,7 @@ function Poluente({ poluente: p }: { poluente: PoluenteAr }) {
       </div>
 
       <aside>
-        <div className="border-b-2 border-texto pb-2 font-bold">Extremos diários</div>
+        <div className="manchete border-b-4 border-sul pb-3 text-3xl">Extremos diários</div>
         <Numero rotulo="Maior valor diário" valor={<Valor valor={p.maximo.valor} unidade={p.unidade} fmt={fmt} />} nota={notaExtremo(p.maximo)} />
         <Numero rotulo="Menor valor diário" valor={<Valor valor={p.minimo.valor} unidade={p.unidade} fmt={fmt} />} nota={notaExtremo(p.minimo)} />
         <Numero
@@ -148,7 +148,7 @@ function Valor({ valor, unidade, fmt }: { valor: number; unidade: string; fmt: (
   return (
     <>
       {fmt(valor)}
-      <span className="ml-1.5 font-sans text-base font-semibold text-texto-3">{unidade}</span>
+      <span className="rotulo ml-2 text-texto-3">{unidade}</span>
     </>
   )
 }
@@ -186,9 +186,9 @@ function Grafico({
         x={(viewBox?.x ?? 0) + (ancora === 'start' ? -4 : ancora === 'end' ? 4 : 0)}
         y={(viewBox?.y ?? 0) + (acima ? -12 : 20)}
         textAnchor={ancora}
-        fontSize={12}
-        fontWeight={700}
+        fontSize={14}
         fill="var(--texto)"
+        style={{ fontFamily: "'Anton', sans-serif" }}
       >
         {texto}
       </text>
@@ -202,7 +202,7 @@ function Grafico({
       const i = index ?? -1
       const isolado = pontos[i]?.[chave] != null && pontos[i - 1]?.[chave] == null && pontos[i + 1]?.[chave] == null
       return isolado ? (
-        <circle key={`${chave}-${i}`} cx={cx} cy={cy} r={4} fill={cor} stroke="var(--superficie)" strokeWidth={2} />
+        <circle key={`${chave}-${i}`} cx={cx} cy={cy} r={4} fill={cor} stroke="var(--fundo)" strokeWidth={2} />
       ) : (
         <g key={`${chave}-${i}`} />
       )
@@ -214,7 +214,7 @@ function Grafico({
       y={e.valor}
       r={5}
       fill={cor}
-      stroke="var(--superficie)"
+      stroke="var(--fundo)"
       strokeWidth={2}
       ifOverflow="visible"
       label={rotulo(`${prefixo} ${fmt(e.valor)}`, e.data.slice(0, 7), acima)}
@@ -233,14 +233,14 @@ function Grafico({
             tickFormatter={(mes: string) => (longo ? mes.slice(0, 4) : fmtMes(mes))}
             tickLine={false}
             axisLine={{ stroke: 'var(--linha)' }}
-            tick={{ fill: 'var(--texto-3)', fontSize: 11 }}
+            tick={{ fill: 'var(--texto-3)', fontSize: 10, fontFamily: "'JetBrains Mono Variable', monospace" }}
             minTickGap={12}
           />
           <YAxis
             width={44}
             tickLine={false}
             axisLine={false}
-            tick={{ fill: 'var(--texto-3)', fontSize: 11 }}
+            tick={{ fill: 'var(--texto-3)', fontSize: 10, fontFamily: "'JetBrains Mono Variable', monospace" }}
             tickFormatter={(v: number) => fmt(v)}
           />
           <Tooltip
@@ -251,12 +251,12 @@ function Grafico({
               if (!active || !payload?.length) return null
               const mes = (payload[0].payload as Ponto).mes
               return (
-                <div className="rounded-xl border border-linha bg-superficie px-3 py-2 text-sm shadow-lg shadow-black/20">
-                  <div className="font-bold text-texto first-letter:uppercase">{fmtMes(mes, MES_LONGO)}</div>
+                <div className="faixa-tinta px-3 py-2 text-sm shadow-[4px_4px_0_var(--color-sul)]">
+                  <div className="rotulo text-texto">{fmtMes(mes, MES_LONGO)}</div>
                   {m ? (
                     <>
                       <div className="mt-0.5 flex items-center gap-1.5 text-texto-2">
-                        <span className="h-0.5 w-3 rounded-full" style={{ background: cor }} />
+                        <span className="h-0.5 w-3" style={{ background: cor }} />
                         <span className="font-semibold text-texto">{fmt(m.media)}</span> {p.unidade} de média
                       </div>
                       <div className="text-texto-2">
@@ -279,7 +279,7 @@ function Grafico({
             strokeLinejoin="round"
             strokeLinecap="round"
             dot={pontoIsolado('reanalise')}
-            activeDot={{ r: 4, fill: cor, stroke: 'var(--superficie)', strokeWidth: 2 }}
+            activeDot={{ r: 4, fill: cor, stroke: 'var(--fundo)', strokeWidth: 2 }}
             isAnimationActive={false}
           />
           <Line
@@ -289,7 +289,7 @@ function Grafico({
             strokeDasharray="4 4"
             strokeLinecap="round"
             dot={pontoIsolado('previsao')}
-            activeDot={{ r: 4, fill: cor, stroke: 'var(--superficie)', strokeWidth: 2 }}
+            activeDot={{ r: 4, fill: cor, stroke: 'var(--fundo)', strokeWidth: 2 }}
             isAnimationActive={false}
           />
           {extremo(p.maximo, true, 'máx.')}
@@ -302,13 +302,13 @@ function Grafico({
 
 function Legenda({ cor, temPrevisao }: { cor: string; temPrevisao: boolean }) {
   return (
-    <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-texto-2">
+    <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[11px] text-texto-2">
       <span className="flex items-center gap-1.5">
-        <span className="h-0.5 w-4 rounded-full" style={{ background: cor }} />
+        <span className="h-0.5 w-4" style={{ background: cor }} />
         Média mensal
       </span>
       <span className="flex items-center gap-1.5">
-        <span className="h-2.5 w-4 rounded-sm" style={{ background: cor, opacity: 0.25 }} />
+        <span className="h-2.5 w-4" style={{ background: cor, opacity: 0.25 }} />
         Do menor ao maior valor diário do mês
       </span>
       {temPrevisao && (
@@ -323,11 +323,11 @@ function Legenda({ cor, temPrevisao }: { cor: string; temPrevisao: boolean }) {
 
 function TabelaMensal({ meses, unidade, fmt }: { meses: MesAr[]; unidade: string; fmt: (n: number) => string }) {
   return (
-    <details className="mt-4 border-t border-linha pt-3 text-sm">
-      <summary className="cursor-pointer font-semibold text-texto-2 hover:text-texto">Ver os valores mensais</summary>
+    <details className="mt-5 border-t border-linha pt-3 font-mono text-xs">
+      <summary className="rotulo cursor-pointer text-texto-2 hover:text-texto">Ver os valores mensais</summary>
       <div className="mt-3 max-h-80 overflow-auto">
         <table className="w-full text-left tabular-nums">
-          <thead className="sticky top-0 bg-superficie text-texto-3">
+          <thead className="rotulo sticky top-0 bg-fundo text-texto-3">
             <tr>
               <th className="py-1.5 pr-4 font-semibold">Mês</th>
               <th className="py-1.5 pr-4 text-right font-semibold">Média ({unidade})</th>

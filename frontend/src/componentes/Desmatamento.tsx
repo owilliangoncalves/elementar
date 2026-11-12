@@ -48,7 +48,7 @@ export function Desmatamento({ consulta: { data, error, isPending } }: { consult
   if (error) return <Falha erro={error} />
 
   const nota = (
-    <p className="mb-4 max-w-3xl text-sm text-texto-2">
+    <p className="maquina mb-6 max-w-3xl text-sm text-texto-2">
       Alertas de desmatamento validados pelo{' '}
       <a href={PLATAFORMA} target="_blank" rel="noreferrer" className="font-semibold text-texto underline">
         MapBiomas Alerta
@@ -73,7 +73,7 @@ export function Desmatamento({ consulta: { data, error, isPending } }: { consult
   return (
     <div>
       {nota}
-      <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
         <div className="grid min-w-0 gap-4">
           <PorAno dados={data} />
           <Tamanhos dados={data} />
@@ -102,9 +102,9 @@ function PorAno({ dados }: { dados: Dados }) {
   }
 
   return (
-    <section className="rounded-2xl border border-linha bg-superficie p-5">
-      <h3 className="text-lg font-bold">Área desmatada por ano</h3>
-      <p aria-live="polite" className="mt-1 min-h-5 text-sm text-texto-2">
+    <section className="ficha p-5">
+      <h3 className="manchete text-3xl">Área desmatada por ano</h3>
+      <p aria-live="polite" className="maquina mt-2 min-h-5 text-sm text-texto-2">
         {foco != null ? descricao(foco) : 'Passe o mouse ou toque em um ano para ver a área e os alertas.'}
       </p>
 
@@ -117,7 +117,7 @@ function PorAno({ dados }: { dados: Dados }) {
             onMouseEnter={() => setFoco(a.ano)}
             onFocus={() => setFoco(a.ano)}
             onBlur={() => setFoco(null)}
-            className="group relative flex h-full flex-1 flex-col justify-end px-[12%] outline-offset-2 focus-visible:outline-2 focus-visible:outline-texto"
+            className="group relative flex h-full min-w-0 flex-1 flex-col justify-end outline-offset-2 focus-visible:outline-2 focus-visible:outline-texto"
           >
             {a.ano === pico && maior > 0 && (
               <span className="pb-1 text-center text-xs font-semibold whitespace-nowrap text-texto tabular-nums">
@@ -125,7 +125,7 @@ function PorAno({ dados }: { dados: Dados }) {
               </span>
             )}
             <span
-              className={cn('block w-full rounded-t-[4px]', foco === a.ano && 'ring-2 ring-texto ring-offset-2 ring-offset-superficie')}
+              className={cn('mx-auto block w-3/4', foco === a.ano && 'ring-2 ring-texto ring-offset-2 ring-offset-fundo')}
               style={{
                 height: a.area_ha ? `max(2px, ${(a.area_ha / maior) * 85}%)` : 0,
                 background:
@@ -138,7 +138,7 @@ function PorAno({ dados }: { dados: Dados }) {
           </button>
         ))}
       </div>
-      <div className="mt-1.5 flex gap-0.5 text-center text-xs text-texto-3 tabular-nums">
+      <div className="mt-1.5 flex gap-0.5 text-center font-mono text-[11px] text-texto-3">
         {dados.por_ano.map((a) => (
           <span key={a.ano} className="flex-1">
             {a.ano}
@@ -148,7 +148,7 @@ function PorAno({ dados }: { dados: Dados }) {
       {parcial && (
         <p className="mt-3 flex items-center gap-1.5 text-xs text-texto-2">
           <span
-            className="h-3 w-4 rounded-[3px]"
+            className="h-3 w-4"
             style={{
               background: `repeating-linear-gradient(135deg, ${MATA} 0 3px, transparent 3px 6px)`,
               boxShadow: `inset 0 0 0 1.5px ${MATA}`,
@@ -158,10 +158,10 @@ function PorAno({ dados }: { dados: Dados }) {
         </p>
       )}
 
-      <details className="mt-4 border-t border-linha pt-3 text-sm">
-        <summary className="cursor-pointer font-semibold text-texto-2 hover:text-texto">Ver os números por ano</summary>
+      <details className="mt-5 border-t border-linha pt-3 font-mono text-xs">
+        <summary className="rotulo cursor-pointer text-texto-2 hover:text-texto">Ver os números por ano</summary>
         <table className="mt-3 w-full text-right tabular-nums">
-          <thead className="text-texto-3">
+          <thead className="rotulo text-texto-3">
             <tr>
               <th className="py-1.5 pr-4 text-left font-semibold">Ano</th>
               <th className="py-1.5 pr-4 font-semibold">Alertas</th>
@@ -208,10 +208,10 @@ function Tamanhos({ dados }: { dados: Dados }) {
   const c = concentracao(dados)
 
   return (
-    <section className="rounded-2xl border border-linha bg-superficie p-5">
-      <h3 className="text-lg font-bold">Tamanho dos alertas</h3>
+    <section className="ficha p-5">
+      <h3 className="manchete text-3xl">Tamanho dos alertas</h3>
       {c && c.de > 0 && (
-        <p className="mt-1 max-w-xl text-sm text-texto-2">
+        <p className="maquina mt-2 max-w-xl text-sm text-texto-2">
           Alertas de {fmt(c.de)} ha ou mais são{' '}
           <strong className="font-semibold text-texto">{fmtPorcento(c.alertas)} dos alertas</strong> e somam{' '}
           <strong className="font-semibold text-texto">{fmtPorcento(c.area)} da área</strong> desmatada.
@@ -219,9 +219,9 @@ function Tamanhos({ dados }: { dados: Dados }) {
       )}
 
       <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-x-3 gap-y-1.5 text-xs">
-        <span className="text-right font-semibold text-texto-2">Parte dos alertas</span>
+        <span className="rotulo text-right text-texto-2">Parte dos alertas</span>
         <span />
-        <span className="font-semibold text-texto-2">Parte da área</span>
+        <span className="rotulo text-texto-2">Parte da área</span>
         {faixas.map((f) => (
           <Linha key={f.de} faixa={f} escala={escala} />
         ))}
@@ -247,13 +247,13 @@ function Linha({
       >
         <span className="text-texto-2 tabular-nums">{fmtPorcento(f.partAlertas)}</span>
         <span className="flex h-4 w-3/4 justify-end">
-          <span className="h-full rounded-l-[4px]" style={{ width: largura(f.partAlertas), background: MATA_CLARO }} />
+          <span className="h-full" style={{ width: largura(f.partAlertas), background: MATA_CLARO }} />
         </span>
       </div>
       <span className="w-24 text-center font-semibold whitespace-nowrap text-texto">{rotulo}</span>
       <div className="flex items-center gap-2" title={`${rotulo}: ${fmtHa(f.area_ha)} ha`}>
         <span className="flex h-4 w-3/4">
-          <span className="h-full rounded-r-[4px]" style={{ width: largura(f.partArea), background: MATA }} />
+          <span className="h-full" style={{ width: largura(f.partArea), background: MATA }} />
         </span>
         <span className="text-texto-2 tabular-nums">{fmtPorcento(f.partArea)}</span>
       </div>
@@ -270,16 +270,16 @@ function Cruzamentos({ dados }: { dados: Dados }) {
   if (!grupos.length) return null
 
   return (
-    <section className="rounded-2xl border border-linha bg-superficie p-5">
-      <h3 className="text-lg font-bold">Onde os alertas caíram</h3>
-      <p className="mt-1 text-sm text-texto-2">
+    <section className="ficha p-5">
+      <h3 className="manchete text-3xl">Onde os alertas caíram</h3>
+      <p className="maquina mt-2 text-sm text-texto-2">
         Parte da área desmatada em alertas que cruzam cada categoria. Um alerta pode cruzar mais de uma, então as partes
         não somam 100%.
       </p>
       <div className="mt-4 grid gap-6 md:grid-cols-2">
         {grupos.map((g) => (
           <div key={g.titulo}>
-            <div className="mb-2 text-sm font-semibold text-texto-2">{g.titulo}</div>
+            <div className="rotulo mb-3 text-texto-2">{g.titulo}</div>
             <ul className="grid gap-3 text-sm">
               {g.itens.map(([nome, rotulo]) => {
                 const c = porNome.get(nome)!
@@ -309,7 +309,7 @@ function Resumo({ dados }: { dados: Dados }) {
   const m = dados.maior
   return (
     <aside>
-      <div className="border-b-2 border-texto pb-2 font-bold">Em números</div>
+      <div className="manchete border-b-4 border-sul pb-3 text-3xl">Em números</div>
       <Numero
         rotulo={`Área desmatada desde ${dados.inicio.slice(0, 4)}`}
         valor={<ComUnidade valor={fmtHa(dados.area_ha)} unidade="ha" />}
@@ -338,7 +338,7 @@ function Resumo({ dados }: { dados: Dados }) {
       <Numero rotulo="Ano com mais área desmatada" valor={pior.ano} nota={`${fmtHa(pior.area_ha)} ha`} />
       {dados.biomas.length > 1 && (
         <div className="py-4">
-          <div className="mb-2 text-sm font-semibold text-texto-2">Por bioma</div>
+          <div className="rotulo mb-3 text-texto-2">Por bioma</div>
           <ul className="grid gap-2 text-sm">
             {dados.biomas.map((b) => (
               <li key={b.bioma}>
@@ -360,7 +360,7 @@ function ComUnidade({ valor, unidade }: { valor: string; unidade: string }) {
   return (
     <>
       {valor}
-      <span className="ml-1.5 font-sans text-base font-semibold text-texto-3">{unidade}</span>
+      <span className="rotulo ml-2 text-texto-3">{unidade}</span>
     </>
   )
 }

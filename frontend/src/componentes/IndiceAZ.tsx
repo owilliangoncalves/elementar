@@ -18,7 +18,7 @@ interface Item extends MunicipioDoIndice {
   letra: string
 }
 
-function Cartao({ m, contorno }: { m: Item; contorno?: string }) {
+function Cartao({ m, contorno, comEstado }: { m: Item; contorno?: string; comEstado: boolean }) {
   const regiao = regiaoDaUf(m.uf)
   return (
     <Link
@@ -43,12 +43,10 @@ function Cartao({ m, contorno }: { m: Item; contorno?: string }) {
         ) : (
           <span className="size-16 border-2 border-dashed" style={{ borderColor: regiao.cor }} />
         )}
-        <span className="fita absolute -bottom-1 left-1/2 -translate-x-1/2">{m.uf}</span>
+        {comEstado && <span className="fita absolute -bottom-1 left-1/2 -translate-x-1/2">{m.uf}</span>}
       </span>
       <span className="mt-3 text-sm leading-tight font-bold group-hover:underline">{m.nome}</span>
-      <span className="mt-0.5 text-xs text-texto-3">
-        {nomeUf(m.uf)}
-      </span>
+      {comEstado && <span className="mt-0.5 text-xs text-texto-3">{nomeUf(m.uf)}</span>}
     </Link>
   )
 }
@@ -56,12 +54,16 @@ function Cartao({ m, contorno }: { m: Item; contorno?: string }) {
 // No DF o SISAGUA usa as Regiões Administrativas, que só casam pelo nome.
 const chaveContorno = (m: Item) => (m.uf === 'DF' ? `DF:${chaveNome(m.municipio)}` : m.codigo_ibge)
 
+// Índice de A a Z. Com `ufFixa`, mostra só os municípios daquele estado, todos,
+// sem os filtros de região e de estado.
 export function IndiceAZ({
-  regiao,
+  regiao = null,
   onRegiao,
+  ufFixa,
 }: {
-  regiao: ChaveRegiao | null
-  onRegiao: (regiao: ChaveRegiao | null) => void
+  regiao?: ChaveRegiao | null
+  onRegiao?: (regiao: ChaveRegiao | null) => void
+  ufFixa?: string
 }) {
   const { data, error, isPending } = useQuery(consultas.indice())
   const { data: contornos } = useQuery(consultas.contornos())
@@ -79,7 +81,7 @@ export function IndiceAZ({
   )
 
   const ufsDaRegiao = regiao ? REGIOES.find((r) => r.chave === regiao)!.ufs : REGIOES.flatMap((r) => r.ufs).sort()
-  const ufValida = uf && ufsDaRegiao.includes(uf) ? uf : ''
+  const ufValida = ufFixa ?? (uf && ufsDaRegiao.includes(uf) ? uf : '')
 
   const filtrados = useMemo(() => {
     const termo = semAcento(texto.trim())
@@ -117,25 +119,29 @@ export function IndiceAZ({
         />
       </label>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Pilula ativa={!regiao} onClick={() => onRegiao(null)}>
-          Todas as regiões
-        </Pilula>
-        {REGIOES.map((r) => (
-          <Pilula key={r.chave} ativa={regiao === r.chave} onClick={() => onRegiao(r.chave)}>
-            <span className="mr-2 inline-block size-2 rounded-full" style={{ background: r.cor }} />
-            {r.nome}
+      {!ufFixa && onRegiao && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Pilula ativa={!regiao} onClick={() => onRegiao(null)}>
+            Todas as regiões
           </Pilula>
-        ))}
-      </div>
+          {REGIOES.map((r) => (
+            <Pilula key={r.chave} ativa={regiao === r.chave} onClick={() => onRegiao(r.chave)}>
+              <span className="mr-2 inline-block size-2 rounded-full" style={{ background: r.cor }} />
+              {r.nome}
+            </Pilula>
+          ))}
+        </div>
+      )}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-        <Seletor
-          rotulo="Estado"
-          valor={ufValida}
-          onMudar={setUf}
-          opcoes={[{ valor: '', rotulo: 'Estado: todos' }, ...ufsDaRegiao.map((u) => ({ valor: u, rotulo: nomeUf(u) }))]}
-        />
+        {!ufFixa && (
+          <Seletor
+            rotulo="Estado"
+            valor={ufValida}
+            onMudar={setUf}
+            opcoes={[{ valor: '', rotulo: 'Estado: todos' }, ...ufsDaRegiao.map((u) => ({ valor: u, rotulo: nomeUf(u) }))]}
+          />
+        )}
         <div className="text-texto-2">
           <span className="font-display text-4xl text-texto">{fmt(filtrados.length)}</span> municípios, de
           A a Z
@@ -180,7 +186,7 @@ export function IndiceAZ({
                 <div className="manchete shrink-0 text-7xl md:w-28 md:text-9xl">{l}</div>
                 <div className="grid flex-1 grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-x-3 gap-y-6">
                   {mostrados.map((m) => (
-                    <Cartao key={m.codigo_ibge} m={m} contorno={contornos?.[chaveContorno(m)]} />
+                    <Cartao key={m.codigo_ibge} m={m} contorno={contornos?.[chaveContorno(m)]} comEstado={!ufFixa} />
                   ))}
                   {grupo.length > mostrados.length && (
                     <button

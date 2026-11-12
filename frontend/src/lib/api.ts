@@ -132,6 +132,23 @@ export interface Queimadas {
 
 // MapBiomas Alerta. Áreas em hectares, só a parte de cada alerta dentro do
 // município. "por_ano" traz todos os anos de "inicio" a "fim", com zeros.
+// Um bloco por elemento, somando os municípios da UF; null quando a fonte não
+// foi carregada.
+export interface ResumoDaUf {
+  uf: string
+  agua: {
+    analises: number
+    registros_fora_do_padrao: number
+    municipios_com_analises: number
+    municipios_com_registros: number
+    de: number | null
+    ate: number | null
+  }
+  ar: { poluente: string; unidade: string; valor: number; data: string; codigo_ibge: string; municipio: string } | null
+  fogo: { focos: number; inicio: string; fim: string; pior_mes: MesFocos | null } | null
+  terra: { alertas: number; area_ha: number; inicio: string; fim: string } | null
+}
+
 export interface Desmatamento {
   distrito_federal: boolean
   inicio: string
@@ -193,6 +210,12 @@ export const consultas = {
       queryKey: ['uf', uf],
       queryFn: ({ signal }) =>
         pegar<MunicipioComTotais[]>(`/estados/${encodeURIComponent(uf)}/municipios`, signal),
+      ...PARA_SEMPRE,
+    }),
+  resumoUf: (uf: string) =>
+    queryOptions({
+      queryKey: ['uf', uf, 'resumo'],
+      queryFn: ({ signal }) => pegar<ResumoDaUf>(`/estados/${encodeURIComponent(uf)}/resumo`, signal),
       ...PARA_SEMPRE,
     }),
   busca: (texto: string) =>

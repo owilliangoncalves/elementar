@@ -1,21 +1,27 @@
 import { useEffect, useState } from 'react'
 import { IndiceAZ } from '../componentes/IndiceAZ'
+import { Faixa, Recorte } from '../componentes/ui'
 import type { ChaveRegiao } from '../lib/lugares'
 
 export function Municipios() {
   const [regiao, setRegiao] = useState<ChaveRegiao | null>(null)
 
   useEffect(() => {
-    document.title = 'Municípios de A a Z · Elementar'
+    document.title = 'Municípios'
   }, [])
 
   return (
-    <div className="py-8">
-      <h1 className="text-2xl font-bold">Municípios, de A a Z</h1>
-      <p className="mt-2 mb-6 max-w-2xl text-texto-2">
-        Todos os municípios com dados de qualidade da água no SISAGUA. Filtre por região, estado ou nome.
-      </p>
-      <IndiceAZ regiao={regiao} onRegiao={setRegiao} />
-    </div>
+    <>
+      <Faixa interno="py-12 md:py-16">
+        <h1 className="manchete text-6xl md:text-8xl">
+          Todos os municípios,
+          <br />
+          <Recorte marca>Municípios.</Recorte>
+        </h1>
+      </Faixa>
+      <Faixa tom="papel-2" interno="py-12 md:py-16">
+        <IndiceAZ regiao={regiao} onRegiao={setRegiao} />
+      </Faixa>
+    </>
   )
 }

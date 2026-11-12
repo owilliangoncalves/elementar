@@ -11,9 +11,6 @@ import {
 } from '../lib/api'
 import { corDoParametro, corDoPh, ehPh, gradienteDoPh } from '../lib/cores'
 import { fmt, tituloNome } from '../lib/formato'
-import { OPCOES_POLUENTE, QualidadeDoAr } from './QualidadeDoAr'
-import { Desmatamento } from './Desmatamento'
-import { Queimadas } from './Queimadas'
 import { Aviso, Barra, Carregando, Falha, Pilula, Seletor, cn } from './ui'
 
 const VIGILANCIA = 'var(--color-vigilancia)'
@@ -41,58 +38,29 @@ const MESES = Array.from({ length: 12 }, (_, i) =>
   new Date(2000, i, 1).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
 )
 
-// Ar, queimadas e desmatamento dividem a barra com as fontes da água, mas não têm ano nem motivo.
-type Aba = Tabela | 'ar' | 'queimadas' | 'desmatamento'
-
-// Os gráficos de cada fonte no ano escolhido, um cartão por parâmetro.
+// Os parâmetros da água no ano escolhido, um cartão por parâmetro, de cada fonte.
 export function RegistrosPorParametro({ municipio }: { municipio: Municipio }) {
   const fontes: Record<Tabela, Ano[] | undefined> = {
     vigilancia: municipio.vigilancia?.por_ano,
     controle: municipio.controle_fora_do_padrao?.por_ano,
   }
-  const anoMaisRecente = (t: Aba) =>
-    t === 'ar' || t === 'queimadas' || t === 'desmatamento' ? 0 : Math.max(...(fontes[t] ?? []).map((a) => a.ano))
+  const anoMaisRecente = (t: Tabela) => Math.max(...(fontes[t] ?? []).map((a) => a.ano))
 
-  const ar = useQuery(consultas.qualidadeDoAr(municipio.codigo_ibge))
-  const poluentes = ar.data?.poluentes ?? []
-  // Com erro a aba aparece, para a falha ser vista em vez de a fonte sumir.
-  const mostrarAr = poluentes.length > 0 || ar.isError
-  // Zero focos também é informação: a aba aparece sempre que os focos foram carregados.
-  const queimadas = useQuery(consultas.queimadas(municipio.codigo_ibge))
-  const mostrarQueimadas = queimadas.isSuccess
-  const desmatamento = useQuery(consultas.desmatamento(municipio.codigo_ibge))
-  const mostrarDesmatamento = desmatamento.isSuccess
-
-  const [escolhida, setTabela] = useState<Aba>(fontes.vigilancia ? 'vigilancia' : fontes.controle ? 'controle' : 'ar')
-  // Sem água, a aba inicial é o ar; sem ar, a primeira das outras fontes carregadas.
-  const tabela: Aba =
-    escolhida === 'ar' && !mostrarAr
-      ? mostrarQueimadas
-        ? 'queimadas'
-        : mostrarDesmatamento
-          ? 'desmatamento'
-          : escolhida
-      : escolhida
-  const [ano, setAno] = useState(() => anoMaisRecente(escolhida))
+  const [tabela, setTabela] = useState<Tabela>(fontes.vigilancia ? 'vigilancia' : 'controle')
+  const [ano, setAno] = useState(() => anoMaisRecente(tabela))
   const [motivo, setMotivo] = useState('')
-  const [poluente, setPoluente] = useState('pm25')
 
   // Fica aqui, e não no cartão da vigilância, porque as opções do filtro de motivo vêm dela.
   const vigilancia = useQuery({
     ...consultas.resumoVigilancia(municipio.codigo_ibge, ano, motivo),
-    enabled: tabela === 'vigilancia',
+    enabled: tabela === 'vigilancia' && Boolean(fontes.vigilancia),
     placeholderData: keepPreviousData,
   })
   const motivos = somarMotivos(vigilancia.data ?? [])
 
-  if (!fontes.vigilancia && !fontes.controle && !mostrarAr && !mostrarQueimadas && !mostrarDesmatamento)
-    return ar.isPending || queimadas.isPending || desmatamento.isPending ? (
-      <Carregando />
-    ) : (
-      <Aviso>Sem registros para este município.</Aviso>
-    )
+  if (!fontes.vigilancia && !fontes.controle) return <Aviso>Sem análises da água para este município.</Aviso>
 
-  const trocarTabela = (t: Aba) => {
+  const trocarTabela = (t: Tabela) => {
     setTabela(t)
     setAno(anoMaisRecente(t))
     setMotivo('')
@@ -111,45 +79,19 @@ export function RegistrosPorParametro({ municipio }: { municipio: Municipio }) {
             Controle fora do padrão
           </Pilula>
         )}
-        {mostrarAr && (
-          <Pilula ativa={tabela === 'ar'} onClick={() => trocarTabela('ar')}>
-            Qualidade do ar
-          </Pilula>
-        )}
-        {mostrarQueimadas && (
-          <Pilula ativa={tabela === 'queimadas'} onClick={() => trocarTabela('queimadas')}>
-            Queimadas
-          </Pilula>
-        )}
-        {mostrarDesmatamento && (
-          <Pilula ativa={tabela === 'desmatamento'} onClick={() => trocarTabela('desmatamento')}>
-            Desmatamento
-          </Pilula>
-        )}
         <span className="flex-1" />
-        {tabela === 'queimadas' || tabela === 'desmatamento' ? null : tabela === 'ar' ? (
-          poluentes.length > 0 && (
-            <Seletor
-              rotulo="Poluente"
-              valor={poluente}
-              onMudar={setPoluente}
-              opcoes={OPCOES_POLUENTE.filter((o) => poluentes.some((p) => p.poluente === o.valor))}
-            />
-          )
-        ) : (
-          <Seletor
-            rotulo="Ano"
-            valor={String(ano)}
-            onMudar={(v) => {
-              setAno(Number(v))
-              setMotivo('')
-            }}
-            opcoes={(fontes[tabela] ?? [])
-              .map((a) => a.ano)
-              .sort((a, b) => b - a)
-              .map((a) => ({ valor: String(a), rotulo: String(a) }))}
-          />
-        )}
+        <Seletor
+          rotulo="Ano"
+          valor={String(ano)}
+          onMudar={(v) => {
+            setAno(Number(v))
+            setMotivo('')
+          }}
+          opcoes={(fontes[tabela] ?? [])
+            .map((a) => a.ano)
+            .sort((a, b) => b - a)
+            .map((a) => ({ valor: String(a), rotulo: String(a) }))}
+        />
         {tabela === 'vigilancia' && Object.keys(motivos).length > 1 && (
           <Seletor
             rotulo="Motivo da coleta"
@@ -164,13 +106,7 @@ export function RegistrosPorParametro({ municipio }: { municipio: Municipio }) {
           />
         )}
       </div>
-      {tabela === 'desmatamento' ? (
-        <Desmatamento consulta={desmatamento} />
-      ) : tabela === 'queimadas' ? (
-        <Queimadas consulta={queimadas} />
-      ) : tabela === 'ar' ? (
-        <QualidadeDoAr consulta={ar} poluente={poluente} />
-      ) : tabela === 'vigilancia' ? (
+      {tabela === 'vigilancia' ? (
         <Vigilancia consulta={vigilancia} ano={ano} motivo={motivo} motivos={motivos} />
       ) : (
         <Controle codigo={municipio.codigo_ibge} ano={ano} />
@@ -206,7 +142,7 @@ function Vigilancia({
 
   return (
     <div className={cn('transition-opacity', isPlaceholderData && 'opacity-50')}>
-      <div className="mb-3 rounded-2xl border border-linha bg-superficie p-4">
+      <div className="mb-3 ficha p-4">
         <Divisao titulo="Motivo da coleta" partes={motivos} cor={CORES_MOTIVO} unidade="análises" />
       </div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -234,10 +170,10 @@ function CartaoVigilancia({ p }: { p: ParametroVigilancia }) {
       ) : p.numerico ? (
         <Histograma n={p.numerico} cor={ph ? corDoPh : () => cor} />
       ) : (
-        <p className="text-sm text-texto-3">Resultados sem valor numérico.</p>
+        <p className="maquina text-sm text-texto-3">Resultados sem valor numérico.</p>
       )}
       {p.abaixo_do_limite > 0 && (
-        <p className="mt-2 text-xs text-texto-3">
+        <p className="maquina mt-2 text-xs text-texto-3">
           Mais {fmt(p.abaixo_do_limite)} abaixo do limite de detecção ou quantificação do método.
         </p>
       )}
@@ -265,14 +201,14 @@ function Cartao({
   children: ReactNode
 }) {
   return (
-    <article className="flex min-w-0 flex-col rounded-2xl border border-linha bg-superficie p-4">
-      <header className="mb-4 flex items-baseline justify-between gap-3">
-        <h3 className="flex items-center gap-2 font-bold">
-          <span aria-hidden className="h-2.5 w-4 shrink-0 rounded-sm" style={{ background: amostra }} />
+    <article className="flex min-w-0 flex-col ficha p-4">
+      <header className="mb-4 flex items-baseline justify-between gap-3 border-b border-dashed border-linha pb-3">
+        <h3 className="manchete flex items-center gap-2 text-2xl">
+          <span aria-hidden className="h-2.5 w-4 shrink-0" style={{ background: amostra }} />
           {titulo}
         </h3>
-        <span className="shrink-0 text-sm text-texto-2">
-          <span className="font-semibold text-texto">{fmt(total)}</span> {unidade}
+        <span className="shrink-0 font-mono text-xs text-texto-2">
+          <span className="font-bold text-texto">{fmt(total)}</span> {unidade}
         </span>
       </header>
       {children}
@@ -286,7 +222,7 @@ function Presenca({ presente, ausente, cor }: { presente: number; ausente: numbe
   return (
     <div>
       <div className="flex items-baseline gap-2">
-        <span className="font-display text-4xl leading-none font-medium" style={{ color: cor }}>
+        <span className="font-display text-5xl leading-none" style={{ color: cor }}>
           {fmt(presente)}
         </span>
         <span className="text-sm text-texto-2">
@@ -331,7 +267,7 @@ function Histograma({ n, cor }: { n: Numerico; cor: (valor: number) => string })
             <span
               key={i}
               title={`${decimal.format(de)} a ${decimal.format(de + largura)}: ${fmt(qtd)} análises`}
-              className="flex-1 rounded-t-sm"
+              className="flex-1"
               style={{
                 height: qtd ? `max(2px, ${(qtd / maior) * 100}%)` : 0,
                 background: cor(centro),
@@ -342,28 +278,28 @@ function Histograma({ n, cor }: { n: Numerico; cor: (valor: number) => string })
         })}
         <span
           aria-hidden
-          className="absolute -bottom-1 h-[calc(100%+0.5rem)] w-0.5 rounded-full bg-texto"
+          className="absolute -bottom-1 h-[calc(100%+0.5rem)] w-0.5 bg-texto"
           style={{ left: `${posicao(n.mediana)}%` }}
         />
       </div>
-      <div className="mt-1 flex justify-between text-xs text-texto-3">
+      <div className="mt-1 flex justify-between font-mono text-[11px] text-texto-3">
         <span>{decimal.format(n.de)}</span>
         <span>{decimal.format(n.ate)}</span>
       </div>
       <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
         <div>
-          <dt className="text-texto-2">Mediana</dt>
-          <dd className="font-display text-2xl leading-tight">{decimal.format(n.mediana)}</dd>
+          <dt className="rotulo text-texto-2">Mediana</dt>
+          <dd className="font-display text-3xl leading-tight">{decimal.format(n.mediana)}</dd>
         </div>
         <div>
-          <dt className="text-texto-2">Metade entre</dt>
-          <dd className="font-display text-2xl leading-tight">
+          <dt className="rotulo text-texto-2">Metade entre</dt>
+          <dd className="font-display text-3xl leading-tight">
             {decimal.format(n.q1)} e {decimal.format(n.q3)}
           </dd>
         </div>
       </dl>
       {n.acima > 0 && (
-        <p className="mt-2 text-xs text-texto-3">
+        <p className="maquina mt-2 text-xs text-texto-3">
           {fmt(n.acima)} {n.acima === 1 ? 'valor ficou' : 'valores ficaram'} fora do gráfico, acima de{' '}
           {decimal.format(n.ate)} (máximo {decimal.format(n.maximo)}).
         </p>
@@ -387,13 +323,13 @@ function Meses({
   const maior = Math.max(1, ...valores)
   return (
     <div className="mt-auto pt-5">
-      <div className="mb-1.5 text-xs font-semibold text-texto-2">Por mês da coleta</div>
+      <div className="rotulo mb-2 text-texto-2">Por mês da coleta</div>
       <div className="flex h-10 items-end gap-1">
         {valores.map((qtd, i) => (
           <span
             key={i}
             title={`${MESES[i]}: ${fmt(qtd)} análises${destaque ? `, ${fmt(destaque[i])} ${rotuloDestaque}` : ''}`}
-            className="relative flex-1 overflow-hidden rounded-sm bg-superficie-2"
+            className="relative flex-1 overflow-hidden bg-superficie-2"
             style={{ height: qtd ? `max(2px, ${(qtd / maior) * 100}%)` : '2px' }}
           >
             <span className="absolute inset-0" style={{ background: cor, opacity: destaque ? 0.3 : 0.75 }} />
@@ -406,7 +342,7 @@ function Meses({
           </span>
         ))}
       </div>
-      <div className="mt-1 flex gap-1 text-center text-[10px] text-texto-3">
+      <div className="mt-1 flex gap-1 text-center font-mono text-[10px] text-texto-3">
         {MESES.map((m) => (
           <span key={m} className="flex-1">
             {m.charAt(0).toUpperCase()}
@@ -445,7 +381,7 @@ function CartaoControle({ p }: { p: ParametroControle }) {
         <Divisao titulo="Zona" partes={p.zonas} cor={cor} unidade="registros" />
         <Divisao titulo="Ponto de monitoramento" partes={p.pontos} cor={cor} unidade="registros" />
         <div>
-          <div className="mb-2 text-xs font-semibold text-texto-2">Áreas com mais registros</div>
+          <div className="rotulo mb-3 text-texto-2">Áreas com mais registros</div>
           <ul className="grid gap-2 text-sm">
             {p.areas.map((a) => (
               <li key={a.area}>
@@ -458,7 +394,7 @@ function CartaoControle({ p }: { p: ParametroControle }) {
             ))}
           </ul>
           {p.outras_areas > 0 && (
-            <p className="mt-2 text-xs text-texto-3">Mais {fmt(p.outras_areas)} em outras áreas.</p>
+            <p className="maquina mt-2 text-xs text-texto-3">Mais {fmt(p.outras_areas)} em outras áreas.</p>
           )}
         </div>
       </div>
@@ -485,7 +421,7 @@ function Divisao({
   return (
     <div>
       <div className="mb-2 flex items-baseline justify-between gap-3 text-xs">
-        <span className="font-semibold text-texto-2">{titulo}</span>
+        <span className="rotulo text-texto-2">{titulo}</span>
         {itens.length > 1 && (
           <span className="text-texto-3">
             {porcento.format(itens[0][1] / total)} {itens[0][0].toLowerCase()}
@@ -511,7 +447,7 @@ function Empilhada({
 }) {
   const total = itens.reduce((t, [, n]) => t + n, 0) || 1
   return (
-    <div className={cn('flex h-3 gap-0.5 overflow-hidden rounded-full', className)}>
+    <div className={cn('flex h-3 gap-0.5 overflow-hidden', className)}>
       {itens.map(([nome, n], i) =>
         n ? (
           <span
@@ -528,10 +464,10 @@ function Empilhada({
 
 function Legenda({ cor, itens }: { cor: Cor; itens: [string, number][] }) {
   return (
-    <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-texto-2">
+    <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-texto-2">
       {itens.map(([nome, n], i) => (
         <li key={nome} className="inline-flex items-center gap-1.5">
-          <span className="size-2 rounded-full" style={pintar(cor, nome, i)} />
+          <span className="size-2" style={pintar(cor, nome, i)} />
           {nome} <span className="font-semibold text-texto">{fmt(n)}</span>
         </li>
       ))}

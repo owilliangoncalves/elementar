@@ -193,9 +193,9 @@ export function Aviso({ children }: { children: ReactNode }) {
   return <div className="maquina py-12 text-center text-texto-3">{children}</div>
 }
 
-export function Barra({ fracao, cor, grossa }: { fracao: number; cor: string; grossa?: boolean }) {
+export function Barra({ fracao, cor }: { fracao: number; cor: string }) {
   return (
-    <span className={cn('block overflow-hidden bg-texto/10', grossa ? 'h-2.5' : 'h-1.5')}>
+    <span className="block h-1.5 overflow-hidden bg-texto/10">
       <span className="block h-full" style={{ width: `${Math.max(0, Math.min(1, fracao)) * 100}%`, background: cor }} />
     </span>
   )

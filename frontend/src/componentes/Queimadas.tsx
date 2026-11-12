@@ -34,7 +34,7 @@ export function Queimadas({ consulta: { data, error, isPending } }: { consulta: 
   if (error) return <Falha erro={error} />
 
   const nota = (
-    <p className="mb-4 max-w-3xl text-sm text-texto-2">
+    <p className="maquina mb-6 max-w-3xl text-sm text-texto-2">
       Focos de fogo ativo detectados pelo satélite de referência do INPE (AQUA, na passagem da tarde). Cada foco é um
       ponto de cerca de 1 km com fogo no momento da passagem: não é o número de incêndios nem a área queimada, e fogo
       pequeno ou sob nuvens pode não ser detectado.
@@ -55,7 +55,7 @@ export function Queimadas({ consulta: { data, error, isPending } }: { consulta: 
   return (
     <div>
       {nota}
-      <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
         <Calendario dados={data} />
         <Resumo dados={data} />
       </div>
@@ -81,13 +81,13 @@ function Calendario({ dados }: { dados: Dados }) {
   }
 
   return (
-    <div className="min-w-0 rounded-2xl border border-linha bg-superficie p-5">
-      <h3 className="text-lg font-bold">Focos por mês</h3>
-      <p aria-live="polite" className="mt-1 min-h-5 text-sm text-texto-2 first-letter:uppercase">
+    <div className="min-w-0 ficha p-5">
+      <h3 className="manchete text-3xl">Focos por mês</h3>
+      <p aria-live="polite" className="maquina mt-2 min-h-5 text-sm text-texto-2 first-letter:uppercase">
         {foco ? descricao(foco) : 'Passe o mouse ou toque em um mês para ver os focos.'}
       </p>
 
-      <table className="mt-4 w-full border-separate border-spacing-0.5 text-xs" onMouseLeave={() => setFoco(null)}>
+      <table className="mt-4 w-full border-separate border-spacing-0.5 font-mono text-[11px]" onMouseLeave={() => setFoco(null)}>
         <thead>
           <tr className="text-texto-3">
             <th className="w-10" />
@@ -116,7 +116,7 @@ function Calendario({ dados }: { dados: Dados }) {
                   if (mes < dados.inicio || mes > dados.fim)
                     return (
                       <td key={mes}>
-                        <span className="block h-6 rounded-[4px] border border-dashed border-linha sm:h-7" />
+                        <span className="block h-6 border border-dashed border-linha sm:h-7" />
                       </td>
                     )
                   const n = porMes.get(mes) ?? 0
@@ -129,7 +129,7 @@ function Calendario({ dados }: { dados: Dados }) {
                         onFocus={() => setFoco(mes)}
                         onBlur={() => setFoco(null)}
                         className={cn(
-                          'block h-6 w-full rounded-[4px] outline-offset-1 focus-visible:outline-2 focus-visible:outline-texto sm:h-7',
+                          'block h-6 w-full outline-offset-1 focus-visible:outline-2 focus-visible:outline-texto sm:h-7',
                           foco === mes && 'ring-2 ring-texto',
                           !n && 'bg-superficie-2',
                         )}
@@ -140,7 +140,7 @@ function Calendario({ dados }: { dados: Dados }) {
                 })}
                 <td className="pl-2 sm:pl-3">
                   <div className="flex items-center gap-2">
-                    <span className="shrink-0 text-right font-semibold text-texto tabular-nums sm:w-12">{fmt(total)}</span>
+                    <span className="shrink-0 text-right font-display text-lg text-texto sm:w-12">{fmt(total)}</span>
                     <span className="hidden min-w-0 flex-1 sm:block">
                       <Barra fracao={total / maiorAno} cor="var(--fogo-3)" />
                     </span>
@@ -160,19 +160,19 @@ function Calendario({ dados }: { dados: Dados }) {
 
 function Legenda({ maior }: { maior: number }) {
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-texto-2">
+    <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 font-mono text-[11px] text-texto-2">
       <span className="flex items-center gap-1.5">
-        <span className="h-3 w-4 rounded-[3px] bg-superficie-2" />
+        <span className="h-3 w-4 bg-superficie-2" />
         Nenhum
       </span>
       {faixas(maior).map((f) => (
         <span key={f.cor} className="flex items-center gap-1.5">
-          <span className="h-3 w-4 rounded-[3px]" style={{ background: f.cor }} />
+          <span className="h-3 w-4" style={{ background: f.cor }} />
           {f.de === f.ate ? fmt(f.de) : `${fmt(f.de)} a ${fmt(f.ate)}`}
         </span>
       ))}
       <span className="flex items-center gap-1.5">
-        <span className="h-3 w-4 rounded-[3px] border border-dashed border-linha" />
+        <span className="h-3 w-4 border border-dashed border-linha" />
         Fora do período
       </span>
     </div>
@@ -191,11 +191,11 @@ function TabelaAnual({
   totalDoAno: (ano: number) => number
 }) {
   return (
-    <details className="mt-4 border-t border-linha pt-3 text-sm">
-      <summary className="cursor-pointer font-semibold text-texto-2 hover:text-texto">Ver os números por mês</summary>
+    <details className="mt-5 border-t border-linha pt-3 font-mono text-xs">
+      <summary className="rotulo cursor-pointer text-texto-2 hover:text-texto">Ver os números por mês</summary>
       <div className="mt-3 max-h-80 overflow-auto">
         <table className="w-full text-right tabular-nums">
-          <thead className="sticky top-0 bg-superficie text-texto-3">
+          <thead className="rotulo sticky top-0 bg-fundo text-texto-3">
             <tr>
               <th className="py-1.5 pr-3 text-left font-semibold">Ano</th>
               {INICIAIS.map((m) => (
@@ -233,7 +233,7 @@ function Resumo({ dados }: { dados: Dados }) {
   const unico = dados.biomas.length === 1 ? dados.biomas[0].bioma : null
   return (
     <aside>
-      <div className="border-b-2 border-texto pb-2 font-bold">Em números</div>
+      <div className="manchete border-b-4 border-sul pb-3 text-3xl">Em números</div>
       <Numero
         rotulo={`Focos desde ${dados.inicio.slice(0, 4)}`}
         valor={fmt(dados.total)}
@@ -251,7 +251,7 @@ function Resumo({ dados }: { dados: Dados }) {
       )}
       {!unico && dados.biomas.length > 1 && (
         <div className="py-4">
-          <div className="mb-2 text-sm font-semibold text-texto-2">Por bioma</div>
+          <div className="rotulo mb-3 text-texto-2">Por bioma</div>
           <ul className="grid gap-2 text-sm">
             {dados.biomas.map((b) => (
               <li key={b.bioma}>
