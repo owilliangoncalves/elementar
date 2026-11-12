@@ -118,12 +118,6 @@ A API entrega um relatório único com todos os alertas, regerado pelo MapBiomas
 
 A API monta as tabelas de consulta quando inicia. Depois de atualizar os dados, reinicie a API.
 
-## Front (em `frontend/`)
-
-- Para desenvolver com recarga automática, execute `npm run dev` com a API rodando. O Vite repassa as rotas da API para a porta 8000.
-- Para compilar para `src/elementar/web/`, que a API serve, execute `npm run build`.
-- Para checar o código, execute `npm run lint`.
-
 ## Docker
 
 A imagem compila o front e instala a API. Os dados ficam em `data/`, compartilhada com o container.
