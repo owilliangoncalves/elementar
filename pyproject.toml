@@ -25,6 +25,7 @@ elementar-servido = "elementar.arquivos.servido:main"
 elementar-sisam = "elementar.ar.sisam:main"
 elementar-queimadas = "elementar.queimadas.focos:main"
 elementar-desmatamento = "elementar.desmatamento.alertas:main"
+elementar-dados = "elementar.dados:main"
 elementar-api = "elementar.api.app:main"
 
 [build-system]

@@ -9,27 +9,62 @@ Dados abertos sobre elementos básicos da vida, por município:
 
 ## Requisitos
 
-- Python 3.13 e [uv](https://docs.astral.sh/uv/)
-- Node.js com npm, para o front
+- Git, para clonar o repositório.
+- Python 3.13 e [uv](https://docs.astral.sh/uv/), para baixar os dados e rodar a API.
+- Node.js 22 com npm, para compilar o front.
+- Docker com Docker Compose, para rodar e publicar o container.
+- Conta gratuita no [MapBiomas Alerta](https://plataforma.alerta.mapbiomas.org), só para os dados de desmatamento.
 
-Os dados ficam em `data/`, que não é versionada. Todos os comandos aceitam `--dados <pasta>` para usar outra pasta.
+## Ferramentas
+
+Backend e dados:
+
+- **uv:** instala as dependências e roda os comandos do projeto.
+- **httpx:** baixa os arquivos e chama as APIs das fontes.
+- **DuckDB:** converte os CSVs em Parquet e consulta os dados.
+- **Parquet:** formato em que os dados ficam gravados, por ano ou mês.
+- **pandas:** monta as tabelas do SISAM antes de gravar.
+- **FastAPI e Uvicorn:** servem a API e o site.
+- **Ruff:** formata e checa o Python.
+
+Front:
+
+- **React, TypeScript e Vite:** interface e build do site.
+- **TanStack Router, Query e Table:** rotas, chamadas à API e tabelas.
+- **Tailwind CSS:** estilos.
+- **D3 e TopoJSON:** mapas dos estados e municípios.
+- **Recharts:** gráficos.
+- **oxlint:** checa o TypeScript.
+
+Publicação:
+
+- **Docker e Docker Compose:** empacotam o site e a API numa imagem.
+- **Cloudflare Tunnel:** publica o site num link `trycloudflare.com`.
+
+Os dados ficam em `data/`. Todos os comandos aceitam `--dados <pasta>` para usar outra pasta.
 
 ## Passo a passo
 
-1. clone esse repositorio com Git ou através do download de arquivos.
-2. Certifique-se de quem instalado os ## Requisitos
-3. Na pasta do projeto
+1. Instale os requisitos acima.
+2. Clone o repositório com Git ou baixe os arquivos.
+3. Entre na pasta do projeto.
 4. Para instalar as dependências do Python, execute `uv sync`.
-5. Para baixar os dados da água, execute `uv run elementar-arquivos`.
-6. Os dados sobre a qualidade da agua precisam ser "tratados", então execute `uv run elementar-servido`
-7. Para baixar os dados do ar, execute `uv run elementar-sisam`. A primeira carga leva cerca de 7 horas.
-8. Para baixar os focos de queimadas, execute `uv run elementar-queimadas`.
-9. Para baixar os alertas de desmatamento, coloque `MAPBIOMAS_EMAIL` e `MAPBIOMAS_SENHA` no `.env` e execute `uv run elementar-desmatamento`.
-10. Para subir o site e a API, execute `uv run elementar-api` e abra http://127.0.0.1:8000.
-11. Para instalar as dependências do front, entre em `frontend/` e execute `npm install`.
-12. Dentro da pasta `frontend/` execute `npm run dev` ou para compilar o front.
+5. Copie o `.env.example` para `.env` e coloque o e-mail e a senha da sua conta do MapBiomas.
+6. Para baixar todos os dados, execute `uv run elementar-dados`.
 
-## Água (OpenDataSUS)
+> São muitos dados e pode levar mais de 10 h. Para baixar só uma amostra, use os comandos de teste de cada fonte, abaixo.
+
+7. Para instalar as dependências do front, entre em `frontend/` e execute `npm install`.
+8. Para compilar o front, ainda em `frontend/`, execute `npm run build`.
+9. Volte para a raiz, execute `uv run elementar-api` e abra http://127.0.0.1:8000.
+
+### Todos os dados
+
+- Para baixar água, ar, queimadas e desmatamento em sequência, execute `uv run elementar-dados`. Uma etapa que falha não interrompe as seguintes.
+- Para rodar só algumas etapas, execute `uv run elementar-dados --etapa queimadas --etapa desmatamento`. As etapas são `agua`, `ar`, `queimadas` e `desmatamento`.
+- Para ignorar os manifestos e baixar tudo de novo, execute `uv run elementar-dados --forcar`.
+
+### Água (OpenDataSUS)
 
 - Para baixar tudo, execute `uv run elementar-arquivos`.
 - Para baixar uma tabela só, execute `uv run elementar-arquivos --tabela agua_controle_mensal_amostras_fora_padrao`. A opção pode ser repetida para mais de uma tabela.
@@ -40,9 +75,7 @@ Os CSVs viram Parquet por ano em duas camadas:
 - `data/parquet/bruto/<tabela>/`: todas as colunas;
 - `data/parquet/servido/<tabela>/`: só os campos do `endpoints.toml`, que a API lê.
 
-## Ar (SISAM/INPE)
-
-O SISAM não pede chave. O coletor faz no máximo 1 chamada por segundo.
+### Ar (SISAM/INPE)
 
 - Para baixar de 2014 até ontem, execute `uv run elementar-sisam`.
 - Para testar com um mês da previsão (cerca de 3 min), execute `uv run elementar-sisam --inicio 2026-10 --fim 2026-10`.
@@ -57,9 +90,9 @@ O manifesto evita baixar de novo o que já está gravado:
 - no mês em andamento, só os dias novos são buscados;
 - um mês baixado da previsão é refeito quando a reanálise passa a cobri-lo.
 
-## Queimadas (Programa Queimadas/INPE)
+### Queimadas (Programa Queimadas/INPE)
 
-Os focos vêm do servidor de dados do INPE, o mesmo do BDQueimadas, sem chave. Só entra o satélite de referência (AQUA, passagem da tarde), que é a série usada pelo INPE para comparar períodos.
+Os focos vêm do servidor de dados do INPE, o mesmo do BDQueimadas. Só entra o satélite de referência (AQUA, passagem da tarde), que é a série usada pelo INPE para comparar períodos.
 
 - Para baixar de 2014 até hoje, execute `uv run elementar-queimadas`.
 - Para testar com um ano, execute `uv run elementar-queimadas --inicio 2025 --fim 2025`.
@@ -67,7 +100,7 @@ Os focos vêm do servidor de dados do INPE, o mesmo do BDQueimadas, sem chave. S
 
 Anos fechados vêm do arquivo anual. O ano corrente vem dos arquivos mensais até o INPE publicar o anual, que então os substitui. Os dados ficam em `data/parquet/bruto/queimadas_focos/ano=AAAA/mes=MM/`. O manifesto fica em `data/parquet/bruto/queimadas_focos/manifesto.json` e guarda o ETag de cada arquivo, então só é baixado o que mudou.
 
-## Desmatamento (MapBiomas Alerta)
+### Desmatamento (MapBiomas Alerta)
 
 Os alertas vêm da API da plataforma MapBiomas Alerta, que pede uma conta gratuita em https://plataforma.alerta.mapbiomas.org.
 
@@ -75,7 +108,7 @@ Os alertas vêm da API da plataforma MapBiomas Alerta, que pede uma conta gratui
 - Para baixar todos os alertas publicados desde 2019, execute `uv run elementar-desmatamento`.
 - Para ignorar o manifesto e baixar de novo, execute `uv run elementar-desmatamento --forcar`.
 
-A API entrega um relatório único com todos os alertas, de cerca de 190 MB, regerado pelo MapBiomas de tempos em tempos. O manifesto (`data/parquet/bruto/desmatamento_alertas/manifesto.json`) guarda o MD5 do relatório: se ele não mudou, nada é baixado. Os dados ficam em `data/parquet/bruto/desmatamento_alertas/ano=AAAA/`, por ano de detecção.
+A API entrega um relatório único com todos os alertas, regerado pelo MapBiomas de tempos em tempos. O manifesto (`data/parquet/bruto/desmatamento_alertas/manifesto.json`) guarda o MD5 do relatório: se ele não mudou, nada é baixado. Os dados ficam em `data/parquet/bruto/desmatamento_alertas/ano=AAAA/`, por ano de detecção.
 
 ## API e site
 
@@ -85,21 +118,15 @@ A API entrega um relatório único com todos os alertas, de cerca de 190 MB, reg
 
 A API monta as tabelas de consulta quando inicia. Depois de atualizar os dados, reinicie a API.
 
-## Front (em `frontend/`)
+## Docker
 
-- Para desenvolver com recarga automática, execute `npm run dev` com a API rodando. O Vite repassa as rotas da API para a porta 8000.
-- Para compilar para `src/elementar/web/`, que a API serve, execute `npm run build`.
-- Para checar o código, execute `npm run lint`.
+A imagem compila o front e instala a API. Os dados ficam em `data/`, compartilhada com o container.
 
-## Coleta pela API do OpenDataSUS (alternativa)
-
-Esta coleta baixa página por página e grava em `data/elementar.duckdb`. O site não depende dela.
-
-- Para baixar tudo, execute `uv run elementar-coleta`.
-- Para testar com poucas páginas, execute `uv run elementar-coleta --max-paginas 3`.
-- Para montar o DuckDB a partir do que foi baixado, execute `uv run elementar-carga`.
-- Para conferir o DuckDB, execute `uv run elementar-verifica`. Use `--amostra 0` para não mostrar linhas de exemplo.
-- Para fazer as três etapas em sequência, execute `uv run elementar-coleta && uv run elementar-carga && uv run elementar-verifica`.
+- Para subir o site em http://127.0.0.1:8000, execute `docker compose up -d --build elementar`.
+- Para subir também o túnel e publicar na internet, execute `docker compose up -d --build`. O link `https://*.trycloudflare.com` aparece em `docker compose logs tunel` e muda a cada reinício do túnel.
+- Para baixar os dados dentro do container, execute `docker compose exec elementar elementar-dados`. Depois, reinicie com `docker compose restart elementar`.
+- Para liberar o acesso pela rede local, coloque `ELEMENTAR_ENDERECO=0.0.0.0` no `.env`. Para mudar a porta, use `ELEMENTAR_PORTA`.
+- Para parar, execute `docker compose down`.
 
 ## Consultas rápidas
 
