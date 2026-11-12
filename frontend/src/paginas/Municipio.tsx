@@ -1,9 +1,11 @@
 import { type UseQueryResult, useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
+import { HeartPulse } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Desmatamento } from '../componentes/Desmatamento'
 import { PainelFonte } from '../componentes/PainelFonte'
 import { OPCOES_POLUENTE, QualidadeDoAr } from '../componentes/QualidadeDoAr'
+import { ImpactoNaSaude } from '../componentes/ImpactoNaSaude'
 import { Queimadas } from '../componentes/Queimadas'
 import { RegistrosPorParametro } from '../componentes/RegistrosPorParametro'
 import { type Coluna, ComUnidade, type Elemento, RetratoElementos } from '../componentes/RetratoElementos'
@@ -41,6 +43,8 @@ const ELEMENTOS = {
 } as const
 
 type ChaveElemento = keyof typeof ELEMENTOS
+// "saude" não é um elemento: é a leitura do ar e da fumaça pelo lado da saúde.
+type Aba = ChaveElemento | 'saude'
 
 // O resumo de cada elemento responde "como está aqui agora": o ano ou os 12
 // meses mais recentes, com o total e o pior momento como contexto.
@@ -120,11 +124,15 @@ function elemento<T>(
 
 // Abas dos elementos: a escolhida troca o conteúdo logo abaixo, no lugar do
 // anterior. A barra fica presa no topo ao rolar, para trocar de qualquer ponto.
-function AbasElementos({ atual, onEscolher }: { atual: ChaveElemento; onEscolher: (chave: ChaveElemento) => void }) {
+function AbasElementos({ atual, onEscolher }: { atual: Aba; onEscolher: (aba: Aba) => void }) {
   // O mesmo grão do papel por cima do fundo, para a barra não destoar da página.
   return (
     <div className="sticky top-16 z-20 border-b border-linha [background:var(--grao),var(--fundo)]">
-      <div role="tablist" aria-label="Elementos" className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 md:gap-2 md:px-6">
+      <div
+        role="tablist"
+        aria-label="Elementos"
+        className="mx-auto flex max-w-7xl items-center gap-0.5 overflow-x-auto px-4 sm:gap-1 md:gap-2 md:px-6"
+      >
         {(Object.keys(ELEMENTOS) as ChaveElemento[]).map((chave) => {
           const e = ELEMENTOS[chave]
           const ativa = atual === chave
@@ -138,7 +146,7 @@ function AbasElementos({ atual, onEscolher }: { atual: ChaveElemento; onEscolher
               aria-controls="painel-elemento"
               onClick={() => onEscolher(chave)}
               className={cn(
-                'manchete flex shrink-0 items-center gap-2.5 border-b-4 px-3 py-3 text-xl transition md:px-4 md:text-2xl',
+                'manchete flex shrink-0 items-center gap-2 border-b-4 px-2 py-3 text-lg transition sm:gap-2.5 sm:px-3 sm:text-xl md:px-4 md:text-2xl',
                 ativa ? 'text-texto' : 'border-transparent text-texto-3 hover:text-texto',
               )}
               style={ativa ? { borderColor: e.cor } : undefined}
@@ -148,6 +156,24 @@ function AbasElementos({ atual, onEscolher }: { atual: ChaveElemento; onEscolher
             </button>
           )
         })}
+        {/* Separada dos elementos e de outro feitio: atravessa o ar e o fogo. */}
+        <button
+          type="button"
+          role="tab"
+          id="aba-saude"
+          aria-selected={atual === 'saude'}
+          aria-controls="painel-elemento"
+          onClick={() => onEscolher('saude')}
+          className={cn(
+            'rotulo ml-auto flex shrink-0 items-center gap-2 border-2 px-2.5 py-2 transition sm:px-4 sm:py-2.5',
+            atual === 'saude' ? 'border-texto bg-texto text-fundo' : 'border-linha text-texto-2 hover:border-texto hover:text-texto',
+          )}
+        >
+          <HeartPulse aria-hidden className="size-4" />
+          {/* No celular o nome curto, para caber na mesma linha das abas. */}
+          <span className="sm:hidden">Saúde</span>
+          <span className="hidden sm:inline">Impacto na saúde</span>
+        </button>
       </div>
     </div>
   )
@@ -160,14 +186,14 @@ export function Municipio() {
   const terra = useQuery(consultas.desmatamento(codigo))
   const fogo = useQuery(consultas.queimadas(codigo))
   const [poluente, setPoluente] = useState('pm25')
-  const [aba, setAba] = useState<ChaveElemento>('agua')
+  const [aba, setAba] = useState<Aba>('agua')
   const painel = useRef<HTMLDivElement>(null)
 
   // Trocar de elemento já rolado para baixo volta só até o começo do novo
   // conteúdo, logo abaixo das abas, para ele não abrir pela metade. 128 px é o
   // cabeçalho mais as abas presas (o mesmo scroll-mt-32 do painel).
-  const escolher = (chave: ChaveElemento) => {
-    setAba(chave)
+  const escolher = (proxima: Aba) => {
+    setAba(proxima)
     const topo = painel.current?.getBoundingClientRect().top
     if (topo != null && topo < 128) painel.current?.scrollIntoView()
   }
@@ -307,6 +333,15 @@ export function Municipio() {
         {aba === 'fogo' && (
           <Secao titulo="Fogo.">
             <Queimadas consulta={fogo} />
+          </Secao>
+        )}
+
+        {aba === 'saude' && (
+          <Secao
+            titulo="Impacto na saúde."
+            descricao="O ar poluído entra pela respiração e afeta do nariz ao coração. A fumaça das queimadas é uma das principais causas."
+          >
+            <ImpactoNaSaude ar={ar} fogo={fogo} />
           </Secao>
         )}
       </div>
