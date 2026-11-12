@@ -31,6 +31,7 @@ from elementar.api.modelos import (
     ParametroVigilancia,
     QualidadeDoAr,
     Queimadas,
+    ResumoDaUf,
 )
 from elementar.config import DADOS_PADRAO, configurar_log
 
@@ -85,6 +86,16 @@ def estados(request: Request) -> list[Estado]:
 def municipios_da_uf(request: Request, uf: Uf) -> list[MunicipioDaUf]:
     resultado = base(request).municipios_com_totais(uf)
     if not resultado:
+        raise HTTPException(404, f"UF sem dados: {uf}")
+    return resultado
+
+
+@app.get("/estados/{uf}/resumo")
+def resumo_da_uf(request: Request, uf: Uf) -> ResumoDaUf:
+    """Água, ar, fogo e terra somados nos municípios da UF. Cada fonte que não
+    foi baixada vem como null."""
+    resultado = base(request).resumo_uf(uf)
+    if resultado is None:
         raise HTTPException(404, f"UF sem dados: {uf}")
     return resultado
 
