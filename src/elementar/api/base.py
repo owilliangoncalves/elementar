@@ -491,6 +491,98 @@ class Base:
             "biomas": biomas,
         }
 
+    def resumo_uf(self, uf: str) -> dict[str, Any] | None:
+        """Um bloco por elemento, somando os municípios da UF; None se a UF não
+        tem dados. Cada fonte não carregada vira None. No DF, ar, fogo e terra
+        vêm do Distrito Federal inteiro, como nas páginas de município."""
+        cursor = self._cursor()
+        prefixos = [
+            p
+            for (p,) in cursor.execute(
+                "SELECT DISTINCT left(codigo_ibge, 2) FROM municipios "
+                "WHERE uf = upper(?)",
+                [uf],
+            ).fetchall()
+        ]
+        if not prefixos:
+            return None
+        # Todas as fontes usam o mesmo código de 6 dígitos: os dois primeiros são a UF.
+        da_uf = "left(codigo_ibge, 2) IN (SELECT unnest($prefixos))"
+
+        ((analises, com_analises, ano_de, ano_ate),) = cursor.execute(
+            f"SELECT coalesce(sum(analises), 0)::BIGINT, count(DISTINCT codigo_ibge), "
+            f"min(ano), max(ano) FROM vigilancia_contagens WHERE {da_uf}",
+            {"prefixos": prefixos},
+        ).fetchall()
+        ((registros, com_registros),) = cursor.execute(
+            f"SELECT coalesce(sum(registros), 0)::BIGINT, count(DISTINCT codigo_ibge) "
+            f"FROM controle_contagens WHERE {da_uf}",
+            {"prefixos": prefixos},
+        ).fetchall()
+        agua = {
+            "analises": analises,
+            "registros_fora_do_padrao": registros,
+            "municipios_com_analises": com_analises,
+            "municipios_com_registros": com_registros,
+            "de": ano_de,
+            "ate": ano_ate,
+        }
+
+        # Ar: o maior valor diário de MP2,5 entre os municípios da UF.
+        cursor.execute(
+            f"""
+            SELECT codigo_ibge, coalesce(m.municipio, 'BRASILIA') AS municipio,
+                   e.maximo AS valor, e.data_maximo AS data,
+                   (SELECT any_value(unidade) FROM ar_mensal
+                    WHERE poluente = 'pm25') AS unidade
+            FROM ar_extremos e LEFT JOIN municipios m USING (codigo_ibge)
+            WHERE e.poluente = 'pm25' AND {da_uf}
+            ORDER BY e.maximo DESC, e.data_maximo DESC LIMIT 1
+            """,
+            {"prefixos": prefixos},
+        )
+        pior_ar = _linhas(cursor)
+        ar = {"poluente": "pm25", **pior_ar[0]} if pior_ar else None
+
+        ((inicio, fim),) = cursor.execute(
+            "SELECT min(inicio), max(fim) FROM focos_periodo"
+        ).fetchall()
+        fogo = None
+        if inicio is not None:
+            cursor.execute(
+                f"SELECT strftime(data, '%Y-%m') AS mes, sum(focos)::INTEGER AS focos "
+                f"FROM focos_dia WHERE {da_uf} GROUP BY mes",
+                {"prefixos": prefixos},
+            )
+            por_mes = _linhas(cursor)
+            fogo = {
+                "focos": sum(m["focos"] for m in por_mes),
+                "inicio": inicio.strftime("%Y-%m"),
+                "fim": fim.strftime("%Y-%m"),
+                "pior_mes": max(
+                    por_mes, key=lambda m: (m["focos"], m["mes"]), default=None
+                ),
+            }
+
+        ((primeiro, ultimo),) = cursor.execute(
+            "SELECT min(data), max(data) FROM alertas"
+        ).fetchall()
+        terra = None
+        if primeiro is not None:
+            ((alertas, area),) = cursor.execute(
+                f"SELECT count(*)::INTEGER, coalesce(sum(area_municipio), 0) "
+                f"FROM alertas WHERE {da_uf}",
+                {"prefixos": prefixos},
+            ).fetchall()
+            terra = {
+                "alertas": alertas,
+                "area_ha": area,
+                "inicio": primeiro.strftime("%Y-%m"),
+                "fim": ultimo.strftime("%Y-%m"),
+            }
+
+        return {"uf": uf.upper(), "agua": agua, "ar": ar, "fogo": fogo, "terra": terra}
+
     def municipios_com_totais(self, uf: str | None = None) -> list[dict[str, Any]]:
         """Todos os municípios (ou só os da UF) com o total de cada fonte."""
         cursor = self._cursor()

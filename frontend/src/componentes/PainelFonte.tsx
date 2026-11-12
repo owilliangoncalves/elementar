@@ -23,18 +23,18 @@ interface RotuloProps {
 function Rotulo({ x, y, width, value, empilhar, recente }: RotuloProps & { empilhar: boolean; recente: boolean }) {
   const [numero, sufixo] = fmtCompacto(Number(value)).split(/\s/)
   const centro = Number(x) + Number(width) / 2
-  const estilo = { fill: recente ? 'var(--texto)' : 'var(--texto-2)', fontWeight: recente ? 700 : 400 }
+  const estilo = { fill: recente ? 'var(--texto)' : 'var(--texto-3)', fontFamily: "'Anton', sans-serif" }
   if (empilhar && sufixo)
     return (
       <text x={centro} y={Number(y) - 15} textAnchor="middle" style={estilo}>
-        <tspan fontSize={10}>{numero}</tspan>
+        <tspan fontSize={13}>{numero}</tspan>
         <tspan x={centro} dy={10} fontSize={8}>
           {sufixo}
         </tspan>
       </text>
     )
   return (
-    <text x={centro} y={Number(y) - 5} textAnchor="middle" fontSize={10} style={estilo}>
+    <text x={centro} y={Number(y) - 6} textAnchor="middle" fontSize={recente ? 16 : 13} style={estilo}>
       {sufixo ? `${numero} ${sufixo}` : numero}
     </text>
   )
@@ -48,15 +48,15 @@ export function PainelFonte<T extends Ano>({ titulo, descricao, cor, porAno, val
   const empilhar = anos.length > 8
 
   return (
-    <div className="flex min-w-0 flex-col rounded-2xl border border-linha bg-superficie p-5">
-      <h3 className="flex items-center gap-2 text-lg font-bold">
-        <span className="size-2.5 rounded-sm" style={{ background: cor }} />
+    <div className="flex min-w-0 flex-col ficha p-5 md:p-6">
+      <h3 className="manchete flex items-center gap-2 text-3xl">
+        <span className="size-3" style={{ background: cor }} />
         {titulo}
       </h3>
-      <p className="mt-1 text-sm text-texto-2">{descricao}</p>
+      <p className="maquina mt-2 text-sm text-texto-2">{descricao}</p>
 
       {!anos.length ? (
-        <div className="py-16 text-center text-texto-3">Sem dados para este município nesta fonte.</div>
+        <div className="maquina py-16 text-center text-texto-3">Sem dados para este município nesta fonte.</div>
       ) : (
         <div className="mt-4 h-48">
           <ResponsiveContainer width="100%" height="100%">
@@ -65,7 +65,7 @@ export function PainelFonte<T extends Ano>({ titulo, descricao, cor, porAno, val
                 dataKey="ano"
                 tickLine={false}
                 axisLine={{ stroke: 'var(--linha)' }}
-                tick={{ fill: 'var(--texto-3)', fontSize: 11 }}
+                tick={{ fill: 'var(--texto-3)', fontSize: 10, fontFamily: "'JetBrains Mono Variable', monospace" }}
                 tickFormatter={(ano: number) => (anos.length > 8 ? `’${String(ano).slice(2)}` : String(ano))}
                 interval={0}
               />
@@ -74,10 +74,10 @@ export function PainelFonte<T extends Ano>({ titulo, descricao, cor, porAno, val
                 isAnimationActive={false}
                 content={({ active, payload, label }) =>
                   active && payload?.length ? (
-                    <div className="rounded-xl border border-linha bg-superficie px-3 py-2 text-sm shadow-lg shadow-black/20">
-                      <div className="font-bold text-texto">{label}</div>
-                      <div className="mt-0.5 flex items-center gap-1.5 text-texto-2">
-                        <span className="size-2 rounded-full" style={{ background: cor }} />
+                    <div className="faixa-tinta px-3 py-2 text-sm shadow-[4px_4px_0_var(--color-sul)]">
+                      <div className="rotulo text-texto">{label}</div>
+                      <div className="mt-1 flex items-center gap-1.5 text-texto-2">
+                        <span className="size-2.5" style={{ background: cor }} />
                         <span className="font-semibold text-texto">{fmt(Number(payload[0].value))}</span> {unidade}
                       </div>
                     </div>
@@ -86,7 +86,7 @@ export function PainelFonte<T extends Ano>({ titulo, descricao, cor, porAno, val
               />
               <Bar
                 dataKey="valor"
-                radius={[4, 4, 0, 0]}
+                radius={0}
                 label={(props: RotuloProps) => (
                   <Rotulo {...props} empilhar={empilhar} recente={anos[props.index ?? -1]?.ano === recente} />
                 )}

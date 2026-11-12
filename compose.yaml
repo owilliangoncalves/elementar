@@ -1,0 +1,37 @@
+services:
+  elementar:
+    build: .
+    image: elementar:local
+    container_name: elementar
+    restart: unless-stopped
+
+    # 127.0.0.1 só neste computador; 0.0.0.0 libera para a rede local.
+    ports:
+      - "${ELEMENTAR_ENDERECO:-127.0.0.1}:${ELEMENTAR_PORTA:-8000}:8000"
+
+    environment:
+      # Credenciais do elementar-desmatamento (opcional), lidas do .env
+      MAPBIOMAS_EMAIL: ${MAPBIOMAS_EMAIL:-}
+      MAPBIOMAS_SENHA: ${MAPBIOMAS_SENHA:-}
+
+    # Os comandos usam data/ relativo a /app, então todos gravam e leem aqui.
+    volumes:
+      - ./data:/app/data
+
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/saude')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5m
+      retries: 3
+
+  # Publica só o elementar na internet por um link https://*.trycloudflare.com,
+  # sem abrir porta no roteador. O link muda a cada reinício do túnel.
+  tunel:
+    image: cloudflare/cloudflared:latest
+    container_name: elementar-tunel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://elementar:8000
+    depends_on:
+      elementar:
+        condition: service_healthy

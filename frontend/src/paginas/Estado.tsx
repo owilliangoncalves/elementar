@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
+import { ElementosDaUf } from '../componentes/ElementosDaUf'
+import { IndiceAZ } from '../componentes/IndiceAZ'
 import { MapaUf, type Metrica } from '../componentes/MapaUf'
-import { TabelaRanking } from '../componentes/TabelaRanking'
-import { Carregando, Etiqueta, Falha, Numero, Secao, Seletor } from '../componentes/ui'
+import { Carregando, Faixa, Falha, Recorte, Secao, Seletor, Trilha } from '../componentes/ui'
 import { consultas } from '../lib/api'
 import { fmt } from '../lib/formato'
 import { nomeUf, regiaoDaUf } from '../lib/lugares'
@@ -24,77 +25,101 @@ export function Estado() {
     document.title = `${nomeUf(uf)} · Elementar`
   }, [uf])
 
-  if (isPending) return <Carregando texto={`Carregando ${nomeUf(uf)}…`} />
-  if (error) return <Falha erro={error} />
+  if (isPending)
+    return (
+      <Faixa>
+        <Carregando texto={`Carregando ${nomeUf(uf)}…`} />
+      </Faixa>
+    )
+  if (error)
+    return (
+      <Faixa>
+        <Falha erro={error} />
+      </Faixa>
+    )
 
-  const soma = (chave: Metrica) => municipios.reduce((t, m) => t + (m[chave] ?? 0), 0)
-  const conta = (chave: Metrica) => municipios.filter((m) => m[chave] != null).length
 
   return (
     <>
-      <nav className="mt-8 mb-6 flex items-center gap-2 text-sm font-bold">
-        <Link to="/" className="text-texto-2 hover:text-texto">
-          Brasil
-        </Link>
-        <span className="text-texto-3">/</span>
-        <span className="text-texto-2">{regiao.nome}</span>
-        <span className="text-texto-3">/</span>
-        {nomeUf(uf)}
-      </nav>
+      <Faixa interno="relative overflow-hidden py-10 md:py-14">
+        <Trilha>
+          <Link to="/" className="hover:text-texto">
+            Brasil
+          </Link>
+          <span>/</span>
+          <span>{regiao.nome}</span>
+          <span>/</span>
+          <span className="text-texto">{nomeUf(uf)}</span>
+        </Trilha>
 
-      <header className="flex flex-wrap items-end gap-x-6 gap-y-4">
-        <span className="font-display text-8xl leading-[0.8] font-bold" style={{ color: regiao.cor }}>
-          {uf}
-        </span>
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight md:text-4xl">{nomeUf(uf)}</h1>
-          <div className="mt-2">
-            <Etiqueta>{fmt(municipios.length)} municípios com dados</Etiqueta>
+        <div className="mt-10 grid items-end gap-8 md:grid-cols-[1fr_auto]">
+          <div>
+            <h1 className="manchete text-6xl sm:text-7xl md:text-9xl">
+              {nomeUf(uf)}
+              <span className="text-sul">.</span>
+            </h1>
+            <p className="fita mt-6 px-4 py-2 text-xs">
+              {fmt(municipios.length)} municípios com dados
+            </p>
+          </div>
+          <div className="relative hidden md:block">
+            <span className="manchete block text-[11rem] leading-[0.8] lg:text-[14rem]" style={{ color: regiao.cor }}>
+              {uf}
+            </span>
           </div>
         </div>
-        <div className="w-full sm:ml-auto sm:w-auto">
+      </Faixa>
+
+      <Faixa tom="tinta" rasgada interno="py-12 md:py-16">
+        <ElementosDaUf uf={uf} />
+        <p className="maquina mt-12 max-w-2xl text-sm text-texto-3">
+          Contagens brutas, sem ajuste por população. Na água, mais análises indicam mais monitoramento, não
+          necessariamente algo pior.
+        </p>
+      </Faixa>
+
+      <Secao
+        titulo={
+          <>
+            Cidade por <span className="text-sul">cidade.</span>
+          </>
+        }
+        descricao="A intensidade da cor acompanha a contagem do município. Toque numa cidade para ver os dados dela."
+        acao={
           <Seletor
             rotulo="Colorir o mapa por"
             valor={metrica}
             onMudar={(v) => setMetrica(v as Metrica)}
             opcoes={METRICAS.map((m) => ({ valor: m.chave, rotulo: m.rotulo }))}
           />
-        </div>
-      </header>
-
-      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_280px]">
-        <MapaUf
-          key={uf}
-          uf={uf}
-          municipios={municipios}
-          metrica={metrica}
-          // Mesma cor da região no mapa do Brasil: o estado não muda de cor ao abrir.
-          cor={regiao.cor}
-          onMunicipio={(codigo) => void navegar({ to: '/municipio/$codigo', params: { codigo } })}
-        />
-        <aside>
-          <div className="border-b-2 border-texto pb-2 font-bold">Em números</div>
-          <Numero
-            rotulo="Análises da vigilância"
-            valor={fmt(soma('vigilancia_analises'))}
-            cor="var(--color-vigilancia)"
-            nota={`${fmt(conta('vigilancia_analises'))} municípios com análises`}
+        }
+      >
+        <figure className="filme">
+          <span className="legenda-filme absolute top-0 left-0 rotate-180 whitespace-nowrap opacity-70 [writing-mode:vertical-rl]">
+            IBGE · malha municipal · {uf}
+          </span>
+          <MapaUf
+            key={uf}
+            uf={uf}
+            municipios={municipios}
+            metrica={metrica}
+            // Mesma cor da região no mapa do Brasil: o estado não muda de cor ao abrir.
+            cor={regiao.cor}
+            onMunicipio={(codigo) => void navegar({ to: '/municipio/$codigo', params: { codigo } })}
           />
-          <Numero
-            rotulo="Registros fora do padrão"
-            valor={fmt(soma('controle_fora_do_padrao_registros'))}
-            cor="var(--color-controle)"
-            nota={`${fmt(conta('controle_fora_do_padrao_registros'))} municípios com registros`}
-          />
-          <p className="mt-4 text-sm text-texto-2">
-            Contagens brutas, sem ajuste por população. Mais análises indicam mais monitoramento, não necessariamente água
-            pior.
-          </p>
-        </aside>
-      </div>
+        </figure>
+      </Secao>
 
-      <Secao className="mt-12" titulo="Ranking dos municípios" descricao="Contagens brutas por município. Escolha como ordenar e toque num nome para ver os detalhes.">
-        <TabelaRanking municipios={municipios} />
+      <Secao
+        tom="papel-2"
+        titulo={
+          <>
+            Municípios <Recorte marca>de A a Z.</Recorte>
+          </>
+        }
+        descricao="Toque num município para ver os dados dele, ou digite o nome."
+      >
+        <IndiceAZ ufFixa={uf} />
       </Secao>
     </>
   )

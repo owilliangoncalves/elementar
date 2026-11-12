@@ -212,6 +212,52 @@ class BiomaArea(BaseModel):
     area_ha: float
 
 
+class AguaDaUf(BaseModel):
+    analises: int  # vigilância, todos os anos
+    registros_fora_do_padrao: int  # controle mensal, todos os anos
+    municipios_com_analises: int
+    municipios_com_registros: int
+    de: int | None  # primeiro ano da vigilância
+    ate: int | None
+
+
+class ArDaUf(BaseModel):
+    """O maior valor diário do poluente entre os municípios da UF."""
+
+    poluente: str
+    unidade: str
+    valor: float
+    data: date
+    codigo_ibge: str
+    municipio: str
+
+
+class FogoDaUf(BaseModel):
+    focos: int
+    inicio: str  # AAAA-MM
+    fim: str  # AAAA-MM
+    pior_mes: MesFocos | None
+
+
+class TerraDaUf(BaseModel):
+    """Área dos alertas dentro dos municípios da UF, em hectares."""
+
+    alertas: int
+    area_ha: float
+    inicio: str  # AAAA-MM
+    fim: str  # AAAA-MM
+
+
+class ResumoDaUf(BaseModel):
+    """Um bloco por elemento; null quando a fonte não foi carregada."""
+
+    uf: str
+    agua: AguaDaUf
+    ar: ArDaUf | None
+    fogo: FogoDaUf | None
+    terra: TerraDaUf | None
+
+
 class Desmatamento(BaseModel):
     """Alertas validados do MapBiomas Alerta, por data de detecção. As áreas são
     a parte de cada alerta dentro do município; no DF, o Distrito Federal
